@@ -1,0 +1,143 @@
+// Package merkle implements Merkle hash trees for efficient data synchronization
+// between cluster nodes. Two identical datasets produce identical root hashes;
+// differing datasets can be reconciled in O(K log N) messages by comparing
+// subtree hashes top-down, where K is the number of differing keys and N is total keys.
+package merkle
+
+import (
+	"crypto/sha256"
+	"encoding/json"
+	"sort"
+)
+
+type Node struct {
+	Hash   [32]byte `json:"hash"`
+	Left   *Node    `json:"left,omitempty"`
+	Right  *Node    `json:"right,omitempty"`
+	IsLeaf bool     `json:"is_leaf"`
+	Keys   []string `json:"keys,omitempty"` // only set on leaf nodes
+}
+
+// Build constructs a Merkle tree from sorted keys.
+// getValue is called to get the value for each key.
+// Keys MUST be sorted before calling Build.
+func Build(keys []string, getValue func(string) []byte) *Node {
+	if len(keys) == 0 {
+		return &Node{Hash: sha256.Sum256(nil)}
+	}
+	if len(keys) <= 4 { // leaf: covers up to 4 keys
+		return buildLeaf(keys, getValue)
+	}
+	mid := len(keys) / 2
+	left := Build(keys[:mid], getValue)
+	right := Build(keys[mid:], getValue)
+	combined := append(left.Hash[:], right.Hash[:]...)
+	return &Node{
+		Hash:  sha256.Sum256(combined),
+		Left:  left,
+		Right: right,
+	}
+}
+
+func buildLeaf(keys []string, getValue func(string) []byte) *Node {
+	h := sha256.New()
+	for _, k := range keys {
+		h.Write([]byte{0})
+		h.Write([]byte(k))
+		h.Write([]byte{0})
+		if getValue != nil {
+			h.Write(getValue(k))
+		}
+		h.Write([]byte{0})
+	}
+	var hash [32]byte
+	copy(hash[:], h.Sum(nil))
+	return &Node{Hash: hash, IsLeaf: true, Keys: keys}
+}
+
+// Diff returns keys that differ between two trees.
+// This is where the magic happens: O(K log N) instead of O(N),
+// because identical subtrees are skipped entirely via hash comparison.
+func Diff(local, remote *Node) []string {
+	if local == nil && remote == nil {
+		return nil
+	}
+	if local == nil || remote == nil {
+		return collectKeys(local, remote)
+	}
+	if local.Hash == remote.Hash {
+		return nil
+	}
+
+	if local.IsLeaf || remote.IsLeaf {
+		seen := make(map[string]bool)
+		collectAllKeys(local, seen)
+		collectAllKeys(remote, seen)
+		result := make([]string, 0, len(seen))
+		for k := range seen {
+			result = append(result, k)
+		}
+		sort.Strings(result)
+		return result
+	}
+	diff := Diff(local.Left, remote.Left)
+	diff = append(diff, Diff(local.Right, remote.Right)...)
+	return diff
+}
+
+func collectAllKeys(n *Node, seen map[string]bool) {
+	if n == nil {
+		return
+	}
+	if n.IsLeaf {
+		for _, k := range n.Keys {
+			seen[k] = true
+		}
+		return
+	}
+	collectAllKeys(n.Left, seen)
+	collectAllKeys(n.Right, seen)
+}
+
+func collectKeys(a, b *Node) []string {
+	n := a
+	if n == nil {
+		n = b
+	}
+	if n == nil {
+		return nil
+	}
+	if n.IsLeaf {
+		result := make([]string, len(n.Keys))
+		copy(result, n.Keys)
+		return result
+	}
+	keys := collectKeys(n.Left, nil)
+	keys = append(keys, collectKeys(n.Right, nil)...)
+	return keys
+}
+
+func RootHash(n *Node) [32]byte {
+	if n == nil {
+		return sha256.Sum256(nil)
+	}
+	return n.Hash
+}
+
+func Serialize(n *Node) ([]byte, error) {
+	return json.Marshal(n)
+}
+
+func Deserialize(data []byte) (*Node, error) {
+	if len(data) == 0 {
+		return nil, nil
+	}
+	var n Node
+	if err := json.Unmarshal(data, &n); err != nil {
+		return nil, err
+	}
+	// Note: JSON doesn't support recursive unmarshaling of pointer fields.
+	// For proper Merkle tree anti-entropy sync, use a different serialization
+	// format (e.g., protobufs) or rebuild tree from keys.
+	return &n, nil
+}

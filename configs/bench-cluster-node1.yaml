@@ -1,0 +1,47 @@
+# BENCHMARK CONFIG - 3-Node Cluster - Node 1 (Optimized Throughput)
+# W=1, R=1 — maximum throughput, eventual consistency
+data_dir: ./data/bench-node1
+port: 9000
+http_port: 9001
+grpc_port: 9100
+log_level: warn
+
+lsm:
+    levels: 4
+    level_ratio: 8
+    l0_base_size: 134217128
+
+compaction:
+    threshold: 4
+    max_concurrent: 2
+    l0_size_threshold: 268435456
+    strategy: tiered
+
+memory:
+    memtable_size: 134217728
+    max_memtable_bytes: 536870912
+    bloom_fp_rate: 0.005
+    block_cache_size: 134217728
+
+wal:
+    sync: false
+    sync_interval: 1s
+    checkpoint_bytes: 67108864
+    max_file_size: 67108864
+
+cluster:
+    enabled: true
+    node_id: http://localhost:9001
+    node_addr: http://localhost:9001
+    grpc_addr: localhost:9100
+    peers:
+        - http://localhost:9011
+        - http://localhost:9021
+    peer_grpc:
+        - localhost:9101
+        - localhost:9102
+    replication_factor: 3
+    quorum_size: 1        # W=1 for max throughput
+    read_quorum: 1        # R=1 for max throughput
+    vnodes: 150
+    rpc_timeout_ms: 2000

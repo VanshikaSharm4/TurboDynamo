@@ -1,0 +1,162 @@
+package cluster
+
+import (
+	"sync"
+	"sync/atomic"
+	"time"
+
+	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+)
+
+type Hint struct {
+	Entry      storage.Entry
+	TargetNode string
+	CreatedAt  time.Time
+	Attempts   atomic.Int32
+}
+
+type HintStore struct {
+	mu         sync.RWMutex
+	hints      []*Hint
+	maxHints   int
+	dropOldest bool
+}
+
+const DefaultMaxHints = 100000
+
+func NewHintStore() *HintStore {
+	return NewHintStoreWithMax(DefaultMaxHints)
+}
+
+func NewHintStoreWithMax(maxHints int) *HintStore {
+	if maxHints <= 0 {
+		maxHints = DefaultMaxHints
+	}
+	return &HintStore{
+		hints:      make([]*Hint, 0, maxHints),
+		maxHints:   maxHints,
+		dropOldest: true,
+	}
+}
+
+func (hs *HintStore) Store(entry storage.Entry, targetNode string) error {
+	hs.mu.Lock()
+	defer hs.mu.Unlock()
+
+	if hs.maxHints > 0 && len(hs.hints) >= hs.maxHints {
+		if hs.dropOldest {
+			removeCount := hs.maxHints / 10
+			if removeCount < 1 {
+				removeCount = 1
+			}
+			if removeCount < len(hs.hints) {
+				hs.hints = hs.hints[removeCount:]
+			}
+		} else {
+			return nil
+		}
+	}
+
+	hs.hints = append(hs.hints, &Hint{
+		Entry:      entry,
+		TargetNode: targetNode,
+		CreatedAt:  time.Now(),
+	})
+	return nil
+}
+
+func (hs *HintStore) GetHintsForNode(nodeID string) []*Hint {
+	hs.mu.RLock()
+	defer hs.mu.RUnlock()
+
+	result := make([]*Hint, 0)
+	for _, h := range hs.hints {
+		if h.TargetNode == nodeID {
+			result = append(result, h)
+		}
+	}
+	return result
+}
+
+func (hs *HintStore) PendingCount() int {
+	hs.mu.RLock()
+	defer hs.mu.RUnlock()
+	return len(hs.hints)
+}
+
+func (hs *HintStore) RemoveHint(key string, targetNode string) {
+	hs.mu.Lock()
+	defer hs.mu.Unlock()
+
+	newHints := make([]*Hint, 0, len(hs.hints))
+	for _, h := range hs.hints {
+		if h.Entry.Key == key && h.TargetNode == targetNode {
+			continue
+		}
+		newHints = append(newHints, h)
+	}
+	hs.hints = newHints
+}
+
+func (hs *HintStore) RetryFailed(deliver func(targetNode string, entry storage.Entry) error) {
+	hs.mu.Lock()
+	hints := make([]*Hint, len(hs.hints))
+	copy(hints, hs.hints)
+	hs.mu.Unlock()
+
+	delivered := make(map[*Hint]bool)
+	toRemove := make([]*Hint, 0)
+
+	// Use a mutex per hint to prevent concurrent delivery of same hint
+	var deliveryMu sync.Mutex
+
+	for _, h := range hints {
+		if h.Attempts.Load() >= 10 {
+			continue
+		}
+
+		// Try to atomically claim this hint delivery
+		deliveryMu.Lock()
+		// Double-check after acquiring lock (another goroutine may have delivered)
+		hs.mu.RLock()
+		var alreadyDelivered bool
+		if _, alreadyDelivered = delivered[h]; alreadyDelivered {
+			hs.mu.RUnlock()
+			deliveryMu.Unlock()
+			continue
+		}
+		hs.mu.RUnlock()
+		if alreadyDelivered {
+			deliveryMu.Unlock()
+			continue
+		}
+
+		err := deliver(h.TargetNode, h.Entry)
+		if err == nil {
+			delivered[h] = true
+			toRemove = append(toRemove, h)
+		} else {
+			h.Attempts.Add(1)
+		}
+		deliveryMu.Unlock()
+	}
+
+	if len(toRemove) > 0 {
+		hs.mu.Lock()
+		newHints := make([]*Hint, 0, len(hs.hints))
+		for _, h := range hs.hints {
+			shouldRemove := false
+			for _, rh := range toRemove {
+				if h == rh {
+					shouldRemove = true
+					break
+				}
+			}
+			if !shouldRemove {
+				newHints = append(newHints, h)
+			}
+		}
+		hs.hints = newHints
+		hs.mu.Unlock()
+	}
+}

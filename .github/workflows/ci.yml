@@ -1,0 +1,328 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  GO_VERSION: "1.25"
+  GOCACHE: ${{ github.workspace }}/.go-cache
+  GOMODCACHE: ${{ github.workspace }}/.go-mod-cache
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # ==========================================
+  # LINT - golangci-lint + go vet + format
+  # ==========================================
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install golangci-lint
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          args: --timeout=5m --issues-exit-code=0
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: Check formatting
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "Unformatted files:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+  # ==========================================
+  # TEST - Unit tests with race detector
+  # ==========================================
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Run tests with race detector
+        run: go test -race -timeout 10m -v ./... 2>&1 | tee test-output.log
+
+      - name: Upload test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: test-output.log
+          retention-days: 7
+
+  # ==========================================
+  # COVERAGE - Generate and report coverage
+  # ==========================================
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Generate coverage
+        run: go test -coverprofile=coverage.out -covermode=atomic ./...
+
+      - name: Coverage summary
+        run: go tool cover -func=coverage.out | tail -1
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.out
+          retention-days: 7
+
+  # ==========================================
+  # BUILD - Cross-platform builds
+  # ==========================================
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      matrix:
+        goos: [linux, darwin]
+        goarch: [amd64, arm64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Build server
+        run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags="-s -w" -o kasoku-server-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/server/
+
+      - name: Build kvctl
+        run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags="-s -w" -o kvctl-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/kvctl/
+
+      - name: Build ycsb-bench
+        run: GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -ldflags="-s -w" -o ycsb-bench-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd/ycsb/
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            kasoku-server-${{ matrix.goos }}-${{ matrix.goarch }}
+            kvctl-${{ matrix.goos }}-${{ matrix.goarch }}
+            ycsb-bench-${{ matrix.goos }}-${{ matrix.goarch }}
+          retention-days: 1
+
+  # ==========================================
+  # INTEGRATION - 3-node cluster test
+  # ==========================================
+  integration:
+    name: Integration (3-node cluster)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Build server and ycsb-bench
+        run: |
+          go build -o kasoku-server ./cmd/server/
+          go build -o ycsb-bench ./cmd/ycsb/
+
+      - name: Start 3-node cluster
+        run: |
+          mkdir -p data/n1 data/n2 data/n3
+          ./kasoku-server --config configs/bench-cluster-node1.yaml &>/dev/null &
+          ./kasoku-server --config configs/bench-cluster-node2.yaml &>/dev/null &
+          ./kasoku-server --config configs/bench-cluster-node3.yaml &>/dev/null &
+          sleep 5
+
+      - name: Health check all nodes
+        run: |
+          for port in 9001 9002 9003; do
+            echo "Checking node on port $port..."
+            curl -sf http://localhost:$port/health || exit 1
+          done
+
+      - name: Run short YCSB workload
+        run: |
+          ./ycsb-bench -nodes "localhost:9100,localhost:9101,localhost:9102" -workers 20 -batch 1 -recordcount 10000 -fieldlength 100 -dur 5 -workload b 2>&1 | tee integration-output.log
+
+      - name: Verify zero errors
+        run: |
+          if grep -q "Errors=0" integration-output.log; then
+            echo "Integration test PASSED - 0 errors"
+          else
+            echo "Integration test FAILED - errors detected"
+            cat integration-output.log
+            exit 1
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: |
+          pkill -f kasoku-server || true
+          rm -rf data/
+
+      - name: Upload integration output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-output
+          path: integration-output.log
+          retention-days: 7
+
+  # ==========================================
+  # DOCKER - Build and push to GHCR
+  # ==========================================
+  docker:
+    name: Docker
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name != 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=sha,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Verify image
+        run: |
+          docker pull ${{ steps.meta.outputs.tags }}
+          docker run --rm -d --name kasoku-test -p 9000:9000 ${{ steps.meta.outputs.tags }}
+          sleep 5
+          curl -sf http://localhost:9000/health || (docker logs kasoku-test && exit 1)
+          docker stop kasoku-test || true
+
+  # ==========================================
+  # BENCHMARK - Single-node throughput check
+  # ==========================================
+  benchmark:
+    name: Benchmark
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Build
+        run: |
+          go build -o kasoku-server ./cmd/server/
+          go build -o ycsb-bench ./cmd/ycsb/
+
+      - name: Run benchmark
+        run: |
+          mkdir -p /tmp/kasoku-data
+          ./kasoku-server --config configs/example.yaml &>/dev/null &
+          sleep 3
+          ./ycsb-bench -nodes "localhost:9100" -workers 20 -batch 1 -recordcount 50000 -fieldlength 100 -dur 5 -workload b 2>&1 | tee bench-output.log
+          pkill -f kasoku-server || true
+
+      - name: Post benchmark results
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('bench-output.log', 'utf8');
+            const throughput = output.match(/Throughput\(ops\/sec\)=(\d+)/)?.[1] || 'N/A';
+            const errors = output.match(/Errors=(\d+)/)?.[1] || 'N/A';
+            const body = `### Benchmark Results (Workload B)\n- **Throughput:** ${throughput} ops/sec\n- **Errors:** ${errors}\n\n<details><summary>Full output</summary>\n\n\`\`\`\n${output}\n\`\`\`\n</details>`;
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Upload benchmark output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-output
+          path: bench-output.log
+          retention-days: 7

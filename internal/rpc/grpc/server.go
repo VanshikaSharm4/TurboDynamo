@@ -1,0 +1,477 @@
+package grpc
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net"
+	"sync"
+
+	"time"
+
+	"github.com/VanshikaSharm4/TurboDynamo.git/api"
+	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+	"github.com/VanshikaSharm4/TurboDynamo.git/internal/tracing"
+	"go.opentelemetry.io/otel/attribute"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/health"
+	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/metadata"
+)
+
+type Logger interface {
+	Debug(msg string, args ...any)
+	Error(msg string, args ...any)
+	Warn(msg string, args ...any)
+}
+
+type ClusterInterface interface {
+	ReplicatedPut(ctx context.Context, key string, value []byte) error
+	ReplicatedDelete(ctx context.Context, key string) error
+	ReplicatedBatchPut(ctx context.Context, entries map[string][]byte) error
+	ReplicatedBatchPutEntries(ctx context.Context, entries []storage.Entry) error
+	ReplicatedGet(ctx context.Context, key string) ([]byte, error)
+	ReplicatedBatchGet(ctx context.Context, keys []string) (map[string]storage.Entry, error)
+	IsDistributed() bool
+}
+
+type Server struct {
+	api.UnimplementedKasokuServiceServer
+	store    storage.StorageEngine
+	nodeID  string
+	addr    string
+	logger  Logger
+
+	mu      sync.RWMutex
+	cluster ClusterInterface
+
+	grpcServer *grpc.Server
+	serveDone  chan struct{}
+}
+
+func NewServer(store storage.StorageEngine, nodeID, addr string, logger Logger) *Server {
+	return &Server{
+		store:   store,
+		nodeID:  nodeID,
+		addr:    addr,
+		logger:  logger,
+	}
+}
+
+func (s *Server) SetCluster(c ClusterInterface) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.cluster = c
+}
+
+func (s *Server) getCluster() ClusterInterface {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.cluster
+}
+
+func (s *Server) Put(ctx context.Context, req *api.PutRequest) (*api.PutResponse, error) {
+	ctx, span := tracing.StartSpan(ctx, "gRPC.Put",
+		attribute.String("key", req.Key),
+		attribute.Int("value_size", len(req.Value)))
+	defer span.End()
+
+	// Check if this is an internal replication request.
+	// If so, write directly to local store to avoid cascading replication loops.
+	if isReplicationRequest(ctx) {
+		var ts time.Time
+		if req.Timestamp > 0 {
+			ts = time.Unix(0, req.Timestamp)
+		}
+		var vc storage.VectorClock
+		if req.VectorClock != nil {
+			vc = make(storage.VectorClock)
+			for k, v := range req.VectorClock {
+				vc[k] = uint64(v)
+			}
+		}
+		entry := storage.Entry{
+			Key:         req.Key,
+			Value:       req.Value,
+			Version:     req.Version,
+			TimeStamp:   ts,
+			VectorClock: vc,
+		}
+		
+		if err := s.store.BatchPut([]storage.Entry{entry}); err != nil {
+			span.RecordError(err)
+			return &api.PutResponse{Success: false, Error: err.Error()}, nil
+		}
+		span.SetAttributes(attribute.Bool("success", true), attribute.Bool("replication", true))
+		return &api.PutResponse{Success: true}, nil
+	}
+
+	if s.getCluster() != nil && s.getCluster().IsDistributed() {
+		replCtx, replSpan := tracing.StartSpan(ctx, "replication.put",
+			attribute.String("key", req.Key))
+		if err := s.getCluster().ReplicatedPut(replCtx, req.Key, req.Value); err != nil {
+			tracing.RecordError(replSpan, err)
+			replSpan.SetAttributes(attribute.Bool("success", false))
+			s.logger.Error("gRPC replicated put failed", "key", req.Key, "error", err)
+			replSpan.End()
+			return &api.PutResponse{Success: false, Error: err.Error()}, nil
+		}
+		replSpan.SetAttributes(attribute.Bool("success", true))
+		replSpan.End()
+		span.SetAttributes(attribute.Bool("success", true))
+		return &api.PutResponse{Success: true}, nil
+	}
+
+	if err := s.store.Put(req.Key, req.Value); err != nil {
+		span.RecordError(err)
+		s.logger.Error("gRPC put failed", "key", req.Key, "error", err)
+		return &api.PutResponse{Success: false, Error: err.Error()}, nil
+	}
+
+	span.SetAttributes(attribute.Bool("success", true))
+	return &api.PutResponse{Success: true}, nil
+}
+
+func (s *Server) Get(ctx context.Context, req *api.GetRequest) (*api.GetResponse, error) {
+	ctx, span := tracing.StartSpan(ctx, "gRPC.Get",
+		attribute.String("key", req.Key))
+	defer span.End()
+
+	var entry storage.Entry
+	var err error
+
+	if isReplicationRequest(ctx) {
+		entry, err = s.store.Get(req.Key)
+		if err != nil {
+			if errors.Is(err, storage.ErrKeyNotFound) {
+				span.SetAttributes(attribute.Bool("found", false))
+				return &api.GetResponse{}, nil
+			}
+			span.RecordError(err)
+			return &api.GetResponse{Error: err.Error()}, nil
+		}
+	} else if s.getCluster() != nil && s.getCluster().IsDistributed() {
+		value, err := s.getCluster().ReplicatedGet(ctx, req.Key)
+		if err != nil {
+			if errors.Is(err, storage.ErrKeyNotFound) {
+				span.SetAttributes(attribute.Bool("found", false))
+				return &api.GetResponse{}, nil
+			}
+			span.RecordError(err)
+			return &api.GetResponse{Error: err.Error()}, nil
+		}
+		entry = storage.Entry{Key: req.Key, Value: value}
+	} else {
+		entry, err = s.store.Get(req.Key)
+		if err != nil {
+			if errors.Is(err, storage.ErrKeyNotFound) {
+				span.SetAttributes(attribute.Bool("found", false))
+				return &api.GetResponse{}, nil
+			}
+			span.RecordError(err)
+			return &api.GetResponse{Error: err.Error()}, nil
+		}
+	}
+
+	span.SetAttributes(
+		attribute.Bool("found", true),
+		attribute.Int("value_size", len(entry.Value)),
+	)
+
+	return &api.GetResponse{
+		Entry: &api.Entry{
+			Key:       entry.Key,
+			Value:     entry.Value,
+			Version:   entry.Version,
+			Timestamp: entry.TimeStamp.UnixNano(),
+			Tombstone: entry.Tombstone,
+		},
+	}, nil
+}
+
+func (s *Server) BatchPut(ctx context.Context, req *api.BatchPutRequest) (*api.BatchPutResponse, error) {
+	ctx, span := tracing.StartSpan(ctx, "gRPC.BatchPut",
+		attribute.Int("entry_count", len(req.Entries)))
+	defer span.End()
+
+	count := len(req.Entries)
+
+	// Check if this is an internal replication request.
+	// If so, write directly to local store to avoid cascading replication loops.
+	if isReplicationRequest(ctx) {
+		entries := make([]storage.Entry, len(req.Entries))
+		for i, e := range req.Entries {
+			var ts time.Time
+			if e.Timestamp > 0 {
+				ts = time.Unix(0, e.Timestamp)
+			}
+			var vc storage.VectorClock
+			if e.VectorClock != nil {
+				vc = make(storage.VectorClock)
+				for k, v := range e.VectorClock {
+					vc[k] = uint64(v)
+				}
+			}
+			entries[i] = storage.Entry{
+				Key:         e.Key,
+				Value:       e.Value,
+				Version:     e.Version,
+				TimeStamp:   ts,
+				Tombstone:   e.Tombstone,
+				VectorClock: vc,
+			}
+		}
+		if err := s.store.BatchPut(entries); err != nil {
+			span.RecordError(err)
+			return &api.BatchPutResponse{Count: 0, Error: err.Error()}, nil
+		}
+		span.SetAttributes(attribute.Int("count", count), attribute.Bool("replication", true))
+		return &api.BatchPutResponse{Count: int32(count)}, nil
+	}
+
+	if s.getCluster() != nil && s.getCluster().IsDistributed() {
+		replCtx, replSpan := tracing.StartSpan(ctx, "replication.batch",
+			attribute.Int("entry_count", count))
+		entriesMap := make(map[string][]byte)
+		for _, e := range req.Entries {
+			entriesMap[e.Key] = e.Value
+		}
+		if err := s.getCluster().ReplicatedBatchPut(replCtx, entriesMap); err != nil {
+			tracing.RecordError(replSpan, err)
+			replSpan.End()
+			s.logger.Error("gRPC batch replicate failed", "error", err)
+			return &api.BatchPutResponse{Count: int32(count), Error: err.Error()}, nil
+		}
+		replSpan.End()
+		span.SetAttributes(attribute.Int("count", count))
+		return &api.BatchPutResponse{Count: int32(count)}, nil
+	}
+
+	entries := make([]storage.Entry, len(req.Entries))
+	for i, e := range req.Entries {
+		entries[i] = storage.Entry{
+			Key:   e.Key,
+			Value: e.Value,
+		}
+	}
+
+	if err := s.store.BatchPut(entries); err != nil {
+		span.RecordError(err)
+		s.logger.Error("gRPC batch put failed", "error", err)
+		return &api.BatchPutResponse{Count: 0, Error: err.Error()}, nil
+	}
+
+	span.SetAttributes(attribute.Int("count", count))
+	return &api.BatchPutResponse{Count: int32(count)}, nil
+}
+
+func (s *Server) Delete(ctx context.Context, req *api.DeleteRequest) (*api.DeleteResponse, error) {
+	if isReplicationRequest(ctx) {
+		var ts time.Time
+		if req.Timestamp > 0 {
+			ts = time.Unix(0, req.Timestamp)
+		}
+		var vc storage.VectorClock
+		if req.VectorClock != nil {
+			vc = make(storage.VectorClock)
+			for k, v := range req.VectorClock {
+				vc[k] = uint64(v)
+			}
+		}
+		entry := storage.Entry{
+			Key:         req.Key,
+			Version:     req.Version,
+			TimeStamp:   ts,
+			Tombstone:   true,
+			VectorClock: vc,
+		}
+		
+		if err := s.store.BatchPut([]storage.Entry{entry}); err != nil {
+			return &api.DeleteResponse{Success: false, Error: err.Error()}, nil
+		}
+		return &api.DeleteResponse{Success: true}, nil
+	}
+
+	if s.getCluster() != nil && s.getCluster().IsDistributed() {
+		if err := s.getCluster().ReplicatedDelete(ctx, req.Key); err != nil {
+			return &api.DeleteResponse{Success: false, Error: err.Error()}, nil
+		}
+		return &api.DeleteResponse{Success: true}, nil
+	}
+
+	if err := s.store.Delete(req.Key); err != nil {
+		return &api.DeleteResponse{Success: false, Error: err.Error()}, nil
+	}
+
+	return &api.DeleteResponse{Success: true}, nil
+}
+
+func (s *Server) Scan(ctx context.Context, req *api.ScanRequest) (*api.ScanResponse, error) {
+	entries, err := s.store.Scan(req.Prefix)
+	if err != nil {
+		return &api.ScanResponse{Error: err.Error()}, nil
+	}
+
+	apiEntries := make([]*api.Entry, len(entries))
+	for i, e := range entries {
+		apiEntries[i] = &api.Entry{
+			Key:       e.Key,
+			Value:     e.Value,
+			Version:   e.Version,
+			Timestamp: e.TimeStamp.UnixNano(),
+			Tombstone: e.Tombstone,
+		}
+	}
+
+	return &api.ScanResponse{Entries: apiEntries}, nil
+}
+
+func (s *Server) MultiGet(ctx context.Context, req *api.MultiGetRequest) (*api.MultiGetResponse, error) {
+	result := make(map[string]*api.Entry)
+
+	if s.getCluster() != nil && s.getCluster().IsDistributed() {
+		entries, err := s.getCluster().ReplicatedBatchGet(ctx, req.Keys)
+		if err != nil {
+			return &api.MultiGetResponse{Error: err.Error()}, nil
+		}
+		for key, entry := range entries {
+			result[key] = &api.Entry{
+				Key:       entry.Key,
+				Value:     entry.Value,
+				Version:   entry.Version,
+				Timestamp: entry.TimeStamp.UnixNano(),
+				Tombstone: entry.Tombstone,
+			}
+		}
+		return &api.MultiGetResponse{Entries: result}, nil
+	}
+
+	for _, key := range req.Keys {
+		entry, err := s.store.Get(key)
+		if err != nil {
+			continue
+		}
+
+		result[key] = &api.Entry{
+			Key:       entry.Key,
+			Value:     entry.Value,
+			Version:   entry.Version,
+			Timestamp: entry.TimeStamp.UnixNano(),
+			Tombstone: entry.Tombstone,
+		}
+	}
+
+	return &api.MultiGetResponse{Entries: result}, nil
+}
+
+func (s *Server) Replicate(stream api.KasokuService_ReplicateServer) error {
+	for {
+		req, err := stream.Recv()
+		if err != nil {
+			return err
+		}
+
+		if req.Entry == nil {
+			continue
+		}
+
+		if err := s.store.Put(req.Entry.Key, req.Entry.Value); err != nil {
+			s.logger.Error("gRPC replicate failed", "key", req.Entry.Key, "error", err)
+			if sendErr := stream.Send(&api.ReplicateResponse{Success: false}); sendErr != nil {
+				return sendErr
+			}
+			continue
+		}
+
+		if err := stream.Send(&api.ReplicateResponse{Success: true}); err != nil {
+			return err
+		}
+	}
+}
+
+func (s *Server) Sync(ctx context.Context, req *api.SyncRequest) (*api.SyncResponse, error) {
+	entries, err := s.store.Scan("")
+	if err != nil {
+		return &api.SyncResponse{}, err
+	}
+
+	var filtered []*api.Entry
+	for _, e := range entries {
+		if e.Version > req.SinceVersion {
+			filtered = append(filtered, &api.Entry{
+				Key:       e.Key,
+				Value:     e.Value,
+				Version:   e.Version,
+				Timestamp: e.TimeStamp.UnixNano(),
+				Tombstone: e.Tombstone,
+			})
+		}
+	}
+
+	return &api.SyncResponse{Entries: filtered, Version: uint64(s.store.Stats().KeyCount)}, nil
+}
+
+
+
+func (s *Server) Start(port int) error {
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
+	if err != nil {
+		return err
+	}
+
+	s.grpcServer = grpc.NewServer(
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             1 * time.Millisecond,
+			PermitWithoutStream: true,
+		}),
+	)
+	api.RegisterKasokuServiceServer(s.grpcServer, s)
+	grpc_health_v1.RegisterHealthServer(s.grpcServer, health.NewServer())
+
+	s.serveDone = make(chan struct{})
+	go func() {
+		defer close(s.serveDone)
+		if err := s.grpcServer.Serve(lis); err != nil {
+			s.logger.Error("gRPC server error", "error", err)
+		}
+	}()
+
+	s.logger.Debug("gRPC server started", "port", port)
+	return nil
+}
+
+func (s *Server) Stop() {
+	if s.grpcServer != nil {
+		s.grpcServer.GracefulStop()
+	}
+	if s.serveDone != nil {
+		<-s.serveDone
+	}
+}
+
+func GetPeerAddress(ctx context.Context) (string, bool) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return "", false
+	}
+
+	values := md.Get("peer-addr")
+	if len(values) == 0 {
+		return "", false
+	}
+
+	return values[0], true
+}
+
+// isReplicationRequest checks if the incoming gRPC call is an internal replication request.
+// This is used to prevent cascading replication loops: when Node A replicates to Node B,
+// Node B must NOT re-enter ReplicatedBatchPut and replicate back.
+func isReplicationRequest(ctx context.Context) bool {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return false
+	}
+	values := md.Get("x-replication")
+	return len(values) > 0 && values[0] == "true"
+}
