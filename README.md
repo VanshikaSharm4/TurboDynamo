@@ -1,4 +1,4 @@
-# Kasoku
+# TurboDynamo
 
 High-performance distributed key-value store implementing Amazon Dynamo paper with LSM-tree storage.
 
@@ -11,7 +11,7 @@ See `docs/ARCHITECTURE.md` for a complete deep dive into the system design, the 
 ### 1. Build
 
 ```bash
-go build -o kasoku-server ./cmd/server/
+go build -o turbodynamo-server ./cmd/server/
 go build -o ycsb-bench ./cmd/ycsb/
 go build -o kvctl ./cmd/kvctl/        # Redis-like CLI
 cp kvctl ~/bin/                        # optional: add to PATH
@@ -21,13 +21,13 @@ export PATH="$HOME/bin:$PATH"
 ### 2. Run (Single Node)
 
 ```bash
-./kasoku-server
+./turbo-dynamo
 # Server starts on http://localhost:9001, gRPC on :9100
 ```
 
 With custom config:
 ```bash
-./kasoku-server --config configs/example.yaml
+./turbodynamo-server --config configs/example.yaml
 ```
 
 Verify:
@@ -39,9 +39,9 @@ curl http://localhost:9001/health
 
 ```bash
 # Start 3 nodes (each with own config + data dir)
-./kasoku-server --config configs/bench-cluster-node1.yaml &
-./kasoku-server --config configs/bench-cluster-node2.yaml &
-./kasoku-server --config configs/bench-cluster-node3.yaml &
+./turbodynamo-server --config configs/bench-cluster-node1.yaml &
+./turbodynamo-server --config configs/bench-cluster-node2.yaml &
+./turbodynamo-server --config configs/bench-cluster-node3.yaml &
 sleep 3
 
 # Verify all healthy
@@ -144,14 +144,14 @@ cloudflared tunnel --url http://localhost:9100
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `KASOKU_CONFIG` | Path to config file | `kasoku.yaml` |
-| `KASOKU_DATA_DIR` | Override data directory | from config |
-| `KASOKU_TRACING` | Enable OpenTelemetry tracing | `false` |
+| `TURBODYNAMO_CONFIG` | Path to config file | `turbodynamo.yaml` |
+| `TURBODYNAMO_DATA_DIR` | Override data directory | from config |
+| `TURBODYNAMO_TRACING` | Enable OpenTelemetry tracing | `false` |
 | `GOGC` | Go GC target percentage | `300` (auto-set) |
 
 ## Performance (YCSB-Standard Benchmarks)
 
-These metrics represent the true, verified performance of the Kasoku Distributed LSM-Engine, measured across a 3-node cluster with strong consistency (`W=2, R=2`) and 50 concurrent workers over gRPC with tiered compaction.
+These metrics represent the true, verified performance of the TurboDynamo Distributed LSM-Engine, measured across a 3-node cluster with strong consistency (`W=2, R=2`) and 50 concurrent workers over gRPC with tiered compaction.
 
 ### 1. Local Throughput (Pre-loading Phase)
 *When writing directly to the node without network consensus routing:*
@@ -177,13 +177,13 @@ These metrics represent the true, verified performance of the Kasoku Distributed
 
 ```bash
 # Build the server and benchmark tool
-go build -o kasoku-server ./cmd/server/
+go build -o turbodynamo-server ./cmd/server/
 go build -o ycsb-bench ./cmd/ycsb/
 
 # Start 3-node cluster
-./kasoku-server --config configs/bench-cluster-node1.yaml &
-./kasoku-server --config configs/bench-cluster-node2.yaml &
-./kasoku-server --config configs/bench-cluster-node3.yaml &
+./turbodynamo-server --config configs/bench-cluster-node1.yaml &
+./turbodynamo-server --config configs/bench-cluster-node2.yaml &
+./turbodynamo-server --config configs/bench-cluster-node3.yaml &
 sleep 3
 
 # Run Workload B (95% Reads, 5% Writes)
@@ -200,7 +200,7 @@ sleep 3
 ## Project Structure
 
 ```
-kasoku/
+turbodynamo/
 ├── cmd/            # Server and CLI binaries
 ├── configs/        # Configuration files (single.yaml, cluster configs)
 ├── deploy/         # Docker, Kubernetes, monitoring
@@ -220,26 +220,26 @@ kasoku/
 
 ## Distributed Tracing
 
-Kasoku includes built-in OpenTelemetry tracing for observability across the distributed cluster.
+TurboDynamo includes built-in OpenTelemetry tracing for observability across the distributed cluster.
 
 ### Enable Tracing
 
 ```bash
 # Enable with stdout export (prints to console)
-KASOKU_TRACING=true ./kasoku-server --config config.yaml
+TURBODYNAMO_TRACING=true ./turbodynamo-server --config config.yaml
 
 # Enable with OTLP export (send to Jaeger/Zipkin)
-KASOKU_TRACING=true KASOKU_TRACING_EXPORTER=otlp KASOKU_OTLP_ENDPOINT=localhost:4317 ./kasoku-server --config config.yaml
+TURBODYNAMO_TRACING=true TURBODYNAMO_TRACING_EXPORTER=otlp TURBODYNAMO_OTLP_ENDPOINT=localhost:4317 ./turbodynamo-server --config config.yaml
 ```
 
 ### Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `KASOKU_TRACING` | Enable tracing (`true`/`false`) | `false` |
-| `KASOKU_TRACING_EXPORTER` | Export format (`stdout`, `otlp`) | `stdout` |
-| `KASOKU_OTLP_ENDPOINT` | OTLP collector address | `localhost:4317` |
-| `KASOKU_OTLP_INSECURE` | Use insecure gRPC | `false` |
+| `TURBODYNAMO_TRACING` | Enable tracing (`true`/`false`) | `false` |
+| `TURBODYNAMO_TRACING_EXPORTER` | Export format (`stdout`, `otlp`) | `stdout` |
+| `TURBODYNAMO_OTLP_ENDPOINT` | OTLP collector address | `localhost:4317` |
+| `TURBODYNAMO_OTLP_INSECURE` | Use insecure gRPC | `false` |
 
 ### Traced Operations
 
@@ -252,7 +252,7 @@ KASOKU_TRACING=true KASOKU_TRACING_EXPORTER=otlp KASOKU_OTLP_ENDPOINT=localhost:
 
 **Console (stdout):**
 ```bash
-KASOKU_TRACING=true go run ./cmd/server/
+TURBODYNAMO_TRACING=true go run ./cmd/server/
 # Spans print as JSON to stdout
 ```
 
@@ -262,7 +262,7 @@ KASOKU_TRACING=true go run ./cmd/server/
 docker run -d --name jaeger -p 16686:16686 -p 4317:4317 jaegertracing/all-in-one
 
 # Run server with tracing
-KASOKU_TRACING=true KASOKU_TRACING_EXPORTER=otlp ./kasoku-server --config config.yaml
+TURBODYNAMO_TRACING=true TURBODYNAMO_TRACING_EXPORTER=otlp ./turbodynamo-server --config config.yaml
 
 # Open http://localhost:16686
 ```
@@ -273,7 +273,7 @@ KASOKU_TRACING=true KASOKU_TRACING_EXPORTER=otlp ./kasoku-server --config config
 docker run -d --name zipkin -p 9411:9411 openzipkin/zipkin
 
 # Run with OTLP (requires zipkin-collector)
-KASOKU_TRACING=true KASOKU_TRACING_EXPORTER=otlp KASOKU_OTLP_ENDPOINT=localhost:9411 ./kasoku-server
+TURBODYNAMO_TRACING=true TURBODYNAMO_TRACING_EXPORTER=otlp TURBODYNAMO_OTLP_ENDPOINT=localhost:9411 ./turbodynamo-server
 ```
 
 ### Trace Example Output
@@ -294,7 +294,3 @@ KASOKU_TRACING=true KASOKU_TRACING_EXPORTER=otlp KASOKU_OTLP_ENDPOINT=localhost:
   }
 }
 ```
-
-## License
-
-Proprietary - see [docs/LICENSE](docs/LICENSE)
