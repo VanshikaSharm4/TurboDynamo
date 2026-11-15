@@ -56,17 +56,17 @@ export function Dashboard() {
     <div className="dashboard">
       <aside className={`dashboard-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}>
         <div className="sidebar-header">
+          <Link to="/" className="sidebar-logo" aria-label="TurboDynamo home" title="Back to landing page">
+            <span className="sidebar-logo-text">{sidebarCollapsed ? 'TD' : 'turbodynamo'}</span>
+          </Link>
           <button
-            className="sidebar-logo"
+            className="sidebar-collapse-toggle"
             aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             aria-expanded={!sidebarCollapsed}
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {sidebarCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-
-            {!sidebarCollapsed && (
-              <span className="sidebar-logo-text">turbodynamo</span>
-            )}
           </button>
         </div>
 

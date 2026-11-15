@@ -3653,3 +3653,10 @@ button:focus-visible, a:focus-visible { outline: 2px solid #808080; outline-offs
 .demo-backend-setup ol { padding-left:20px; margin:24px 0; }
 .demo-backend-setup .demo-tabs { gap:12px; }
 .demo-backend-setup button:disabled { opacity:.5; cursor:wait; }
+
+/* Keep home navigation separate from the sidebar control. */
+.sidebar-header { flex-direction: column; align-items: stretch; gap: 8px; }
+.sidebar-collapse-toggle { display: flex; align-items: center; justify-content: center; width: 34px; height: 32px; margin-left: 8px; border: 1px solid var(--border); border-radius: 6px; color: var(--text-secondary); background: var(--bg); }
+.sidebar-collapse-toggle:hover { background: var(--accent-light); color: var(--text-primary); }
+.dashboard-sidebar.collapsed .sidebar-header { align-items: center; }
+.dashboard-sidebar.collapsed .sidebar-collapse-toggle { margin-left: 0; }
