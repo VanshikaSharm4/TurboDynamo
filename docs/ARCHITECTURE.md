@@ -1,6 +1,6 @@
-# Kasoku Architecture
+# TurboDynamo Architecture
 
-This document explains the internal design of Kasoku. 
+This document explains the internal design of TurboDynamo.
 
 > [!NOTE]
 > **Visual Learner?** Check out the [UML & Sequence Diagrams](UML_DIAGRAMS.md) for 9 complete architectural flowcharts.
@@ -19,7 +19,7 @@ This document explains the internal design of Kasoku.
 
 ## System Overview
 
-Kasoku is a distributed, masterless key-value store implementing the Amazon Dynamo paper. It combines:
+TurboDynamo is a distributed, masterless key-value store implementing the Amazon Dynamo paper. It combines:
 
 - **LSM-Tree** for high-throughput storage
 - **Consistent Hashing** for data partitioning
@@ -117,7 +117,7 @@ Client Request
 func (r *Ring) GetNodes(key string, n int) []string {
     pos := r.hash(key)           // CRC32 hash
     idx := r.search(pos)         // Binary search
-    
+
     // Walk clockwise to find N distinct nodes
     seen := make(map[string]bool)
     for len(result) < n {
@@ -190,7 +190,7 @@ Normal: Key "user:1" → [A, B, C] (A is primary)
 
 If B is DOWN:
   → Use fallback: [A, C, D]
-  
+
 This is "sloppy" - we don't insist on the original
 preference list, we use whatever nodes are available.
 ```
@@ -201,7 +201,7 @@ preference list, we use whatever nodes are available.
 func (c *Cluster) getReplicasForKey(key string, aliveSet map[string]bool) []string {
     // 1. Get preferred nodes from hash ring
     preferred := c.ring.GetNodes(key, c.replicationFactor)
-    
+
     // 2. Filter to alive only
     var healthy []string
     for _, nodeID := range preferred {
@@ -209,7 +209,7 @@ func (c *Cluster) getReplicasForKey(key string, aliveSet map[string]bool) []stri
             healthy = append(healthy, nodeID)
         }
     }
-    
+
     // 3. SLOPPY: Fall back to other nodes if needed
     if len(healthy) < c.replicationFactor {
         for _, nodeID := range c.ring.GetAllNodesSorted() {
@@ -452,7 +452,7 @@ cluster:
 ## File Structure
 
 ```
-kasoku/
+turbodynamo/
 ├── cmd/
 │   └── server/           # Main server entry
 ├── internal/
@@ -501,7 +501,7 @@ kasoku/
 
 ## Summary
 
-Kasoku implements all major features from the Dynamo paper:
+TurboDynamo implements all major features from the Dynamo paper:
 
 - ✅ Consistent Hashing
 - ✅ Sloppy Quorum (W=2, R=2)

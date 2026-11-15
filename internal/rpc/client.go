@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
 )
 
 type Client struct {
@@ -23,9 +23,9 @@ func NewClient(nodeAddr string) *Client {
 			Timeout: 2 * time.Second,
 			Transport: &http.Transport{
 				MaxIdleConnsPerHost:   500,
-				MaxConnsPerHost:     500,
-				IdleConnTimeout:     90 * time.Second,
-				DisableKeepAlives:   false,
+				MaxConnsPerHost:       500,
+				IdleConnTimeout:       90 * time.Second,
+				DisableKeepAlives:     false,
 				ResponseHeaderTimeout: 1 * time.Second,
 			},
 		},

@@ -5,7 +5,7 @@ export function Footer() {
     <footer className="footer">
       <div className="footer-inner">
         <div className="footer-left">
-          <img src="/logo.svg" alt="kasoku" className="footer-logo-img" />
+
           <p className="footer-copy">
             Distributed key-value storage engine. Built with Go.
           </p>

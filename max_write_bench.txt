@@ -1,6 +1,6 @@
 
 ╔══════════════════════════════════════════════════════════════╗
-║     KASOKU - gRPC Benchmark                                  ║
+║     TURBODYNAMO - gRPC Benchmark                                  ║
 ╠══════════════════════════════════════════════════════════════╣
 ║  Nodes: 3  |  Workers: 100  |  Batch: 5 keys/request       ║
 ║  Pre-load: 10000 keys  |  Workload: 0%R/100%W  |  Duration: 15s ║

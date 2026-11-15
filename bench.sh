@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Kasoku YCSB Benchmark Runner
+# TurboDynamo YCSB Benchmark Runner
 # Builds, starts 3-node cluster, runs workloads, reports results
 #
 # Usage:
@@ -95,7 +95,7 @@ for i in $(seq 0 $(($# - 1))); do
 done
 
 echo -e "${BOLD}${CYAN}╔══════════════════════════════════════════════════════════════════╗${RESET}"
-echo -e "${BOLD}${CYAN}║  Kasoku YCSB Benchmark${RESET}"
+echo -e "${BOLD}${CYAN}║  TurboDynamo YCSB Benchmark${RESET}"
 echo -e "${BOLD}${CYAN}╚══════════════════════════════════════════════════════════════════╝${RESET}"
 echo ""
 echo -e "  Mode:       ${BOLD}$MODE${RESET}"
@@ -109,14 +109,14 @@ echo ""
 
 # Build
 echo -e "${YELLOW}Building...${RESET}"
-go build -o kasoku-server ./cmd/server/
+go build -o turbodynamo-server ./cmd/server/
 go build -o ycsb-bench ./cmd/ycsb/
 echo -e "${GREEN}✓${RESET} Built"
 echo ""
 
 cleanup() {
     echo -e "${DIM}Cleaning up...${RESET}"
-    pkill -f "kasoku-server" 2>/dev/null || true
+    pkill -f "turbodynamo-server" 2>/dev/null || true
     sleep 1
 }
 trap cleanup EXIT INT TERM
@@ -126,13 +126,13 @@ run_workload() {
     echo -e "${BOLD}━━━ Workload $wl ━━━${RESET}"
 
     if [ "$MODE" = "cluster" ]; then
-        pkill -f "kasoku-server" 2>/dev/null || true
+        pkill -f "turbodynamo-server" 2>/dev/null || true
         sleep 1
         rm -rf data/bench-node1 data/bench-node2 data/bench-node3
 
-        ./kasoku-server --config configs/bench-cluster-node1.yaml &>/dev/null &
-        ./kasoku-server --config configs/bench-cluster-node2.yaml &>/dev/null &
-        ./kasoku-server --config configs/bench-cluster-node3.yaml &>/dev/null &
+        ./turbodynamo-server --config configs/bench-cluster-node1.yaml &>/dev/null &
+        ./turbodynamo-server --config configs/bench-cluster-node2.yaml &>/dev/null &
+        ./turbodynamo-server --config configs/bench-cluster-node3.yaml &>/dev/null &
         sleep 3
 
         for port in 9001 9011 9021; do
@@ -154,13 +154,13 @@ run_workload() {
             -dur "$DURATION" \
             -workload "$wl"
     else
-        pkill -f "kasoku-server" 2>/dev/null || true
+        pkill -f "turbodynamo-server" 2>/dev/null || true
         sleep 1
         rm -rf data/ycsb-single
         mkdir -p data/ycsb-single
 
-        KASOKU_DATA_DIR=./data/ycsb-single KASOKU_CONFIG=./configs/bench-realistic.yaml \
-        ./kasoku-server &>/dev/null &
+        TURBODYNAMO_DATA_DIR=./data/ycsb-single TURBODYNAMO_CONFIG=./configs/bench-realistic.yaml \
+        ./turbodynamo-server &>/dev/null &
         sleep 2
 
         if ! curl -sf "http://localhost:9001/health" >/dev/null 2>&1; then

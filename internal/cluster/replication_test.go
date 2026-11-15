@@ -14,10 +14,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/ring"
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/rpc"
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/server"
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/store/lsm"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/ring"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/rpc"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/server"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/store/lsm"
 )
 
 type testNode struct {

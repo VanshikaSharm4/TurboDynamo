@@ -9,12 +9,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/metrics"
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/ring"
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/rpc"
-	grpcrpc "github.com/VanshikaSharm4/TurboDynamo.git/internal/rpc/grpc"
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/tracing"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/metrics"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/ring"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/rpc"
+	grpcrpc "github.com/VanshikaSharm4/TurboDynamo/internal/rpc/grpc"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/tracing"
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -42,10 +42,10 @@ type Cluster struct {
 	nodeAddr          string
 	ring              *ring.Ring
 	store             storage.StorageEngine
-	clients           map[string]*rpc.Client // keyed by node address (HTTP)
+	clients           map[string]*rpc.Client               // keyed by node address (HTTP)
 	grpcClients       map[string]*grpcrpc.ReplicatedClient // keyed by node address (gRPC)
-	grpcPool          *grpcrpc.Pool // shared gRPC connection pool
-	nodeAddrMap       map[string]string      // nodeID -> address
+	grpcPool          *grpcrpc.Pool                        // shared gRPC connection pool
+	nodeAddrMap       map[string]string                    // nodeID -> address
 	replicationFactor int
 	quorumSize        int
 	readQuorum        int // R = 1 for eventual, R = 2 for strong
@@ -61,10 +61,10 @@ type Cluster struct {
 	// Background replication for eventual consistency
 	backgroundReplicator *BackgroundReplicator
 	gossipProtocol       *GossipProtocol
-	merkleAntiEntropy   *MerkleAntiEntropy
-	hintStore           *HintStore
-	hintStoreOnce       sync.Once
-	stopCh              chan struct{}
+	merkleAntiEntropy    *MerkleAntiEntropy
+	hintStore            *HintStore
+	hintStoreOnce        sync.Once
+	stopCh               chan struct{}
 }
 
 // GetClient returns RPC client for a node address
@@ -90,7 +90,7 @@ func (c *Cluster) GetReplicationFactor() int {
 type ClusterConfig struct {
 	NodeID            string
 	NodeAddr          string // Base URL for this node (e.g. "http://localhost:8080")
-	GRPCPort         int  // gRPC port for inter-node communication
+	GRPCPort          int    // gRPC port for inter-node communication
 	Ring              *ring.Ring
 	Store             storage.StorageEngine
 	ReplicationFactor int
@@ -99,7 +99,7 @@ type ClusterConfig struct {
 	RPCTimeout        time.Duration
 	Logger            *slog.Logger
 	Peers             []string
-	PeerGRPCAddrs     []string // gRPC addresses for peers (parallel to Peers)
+	PeerGRPCAddrs     []string    // gRPC addresses for peers (parallel to Peers)
 	Members           *MemberList // for sloppy quorum - check node liveness
 	Metrics           *metrics.Metrics
 }
@@ -493,8 +493,6 @@ QuorumLoop:
 	return fmt.Errorf("%w: got %d acks, need %d", ErrQuorumNotReached, acks, c.quorumSize)
 }
 
-
-
 // ReplicatedBatchPut writes a batch of entries to the cluster with replication.
 func (c *Cluster) ReplicatedBatchPut(ctx context.Context, entries map[string][]byte) error {
 	ctx, span := tracing.StartSpan(ctx, "cluster.ReplicatedBatchPut",
@@ -506,7 +504,7 @@ func (c *Cluster) ReplicatedBatchPut(ctx context.Context, entries map[string][]b
 	}
 
 	aliveSet := c.snapshotAliveSet()
-	
+
 	// Track how many target replicas exist for each key
 	keyTargets := make(map[string]int)
 
@@ -516,17 +514,17 @@ func (c *Cluster) ReplicatedBatchPut(ctx context.Context, entries map[string][]b
 	authoritativeEntries := make(map[string]storage.Entry, len(entries))
 	for k, v := range entries {
 		// Increment the local engine's version counter safely
-		// Note: We need a way to increment version safely. Since LSMEngine encapsulates this, 
+		// Note: We need a way to increment version safely. Since LSMEngine encapsulates this,
 		// we'll rely on the local store to NOT overwrite it if we provide a non-zero version.
 		// Wait, we need an atomic version counter. Let's just use time.Now().UnixNano() as version
 		// or let the local store generate it and fetch it.
-		// Actually, Kasoku uses VectorClocks and Versions. To prevent race conditions, the 
+		// Actually, TurboDynamo uses VectorClocks and Versions. To prevent race conditions, the
 		// coordinator should just use TimeStamp.UnixNano() as the Version, since it's monotonic.
 		// Wait, LSMEngine's Add(1) is better. However, since the cluster doesn't have direct access
 		// to LSMEngine's atomic counter, we can just use UnixNano as a globally safe version.
 		version := uint64(now.UnixNano())
 		vc := storage.NewVectorClock().Increment(c.nodeID)
-		
+
 		authoritativeEntries[k] = storage.Entry{
 			Key:         k,
 			Value:       v,
@@ -542,13 +540,13 @@ func (c *Cluster) ReplicatedBatchPut(ctx context.Context, entries map[string][]b
 	c.mu.RLock()
 	for k, entry := range authoritativeEntries {
 		replicas := c.getReplicasForKey(k, aliveSet)
-		
+
 		if len(replicas) == 0 {
 			continue
 		}
-		
+
 		keyTargets[k] = len(replicas)
-		
+
 		for i := 0; i < len(replicas); i++ {
 			node := replicas[i]
 			nodeBatches[node] = append(nodeBatches[node], entry)
@@ -647,7 +645,7 @@ func (c *Cluster) ReplicatedBatchPut(ctx context.Context, entries map[string][]b
 					break
 				}
 			}
-			
+
 			if allQuorumReached {
 				wg.Wait()
 				return nil

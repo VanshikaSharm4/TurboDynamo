@@ -1,5 +1,5 @@
 #!/bin/bash
-# Kasoku Distributed Benchmark — 3-Node Cluster
+# TurboDynamo Distributed Benchmark — 3-Node Cluster
 # Usage: ./benchmarks/run_cluster.sh
 
 set -euo pipefail
@@ -9,13 +9,13 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 cd "$ROOT_DIR"
 
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║     KASOKU — 3-Node Cluster Benchmark                       ║"
+echo "║     TURBODYNAMO — 3-Node Cluster Benchmark                       ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
 # Build
 echo "▸ Building..."
-go build -o kasoku-server ./cmd/server
+go build -o turbodynamo-server ./cmd/server
 go build -o bench-client ./cmd/bench
 echo "  Done."
 
@@ -26,13 +26,13 @@ rm -rf data/bench-node1 data/bench-node2 data/bench-node3
 echo ""
 echo "▸ Starting 3-node cluster..."
 
-./kasoku-server --config configs/bench-cluster-node1.yaml &
+./turbodynamo-server --config configs/bench-cluster-node1.yaml &
 NODE1_PID=$!
 
-./kasoku-server --config configs/bench-cluster-node2.yaml &
+./turbodynamo-server --config configs/bench-cluster-node2.yaml &
 NODE2_PID=$!
 
-./kasoku-server --config configs/bench-cluster-node3.yaml &
+./turbodynamo-server --config configs/bench-cluster-node3.yaml &
 NODE3_PID=$!
 
 cleanup() {

@@ -11,54 +11,54 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/metrics"
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/metrics"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
 )
 
 type LSMEngine struct {
-	mu           sync.RWMutex
-	active       *MemTable
-	immutable    []*MemTable // queue of memtables waiting to flush
-	wal          *storage.WAL
-	levels       [][]*SSTableReader // kept for backward compat, but used as tiers
-	version      atomic.Uint64
-	dir          string
-	closed       atomic.Bool
-	flushCh      chan struct{}      // async flush signal
-	directFlushCh chan struct{}    // sync flush request (blocks caller)
-	compCh      chan struct{}
-	flushCond   *sync.Cond // signaled when a flush completes, used for backpressure
-	wg          sync.WaitGroup
-	config      LSMConfig
-	cache       *KeyCache
-	nodeID      string // node identifier for vector clock
-	writeCounter uint32 // atomic counter to reduce IsFull check frequency
-	flushing   atomic.Bool // true when flushLoop is processing (prevents race with flushMemTable)
-	compactionStrategy string // "leveled" or "tiered"
+	mu                 sync.RWMutex
+	active             *MemTable
+	immutable          []*MemTable // queue of memtables waiting to flush
+	wal                *storage.WAL
+	levels             [][]*SSTableReader // kept for backward compat, but used as tiers
+	version            atomic.Uint64
+	dir                string
+	closed             atomic.Bool
+	flushCh            chan struct{} // async flush signal
+	directFlushCh      chan struct{} // sync flush request (blocks caller)
+	compCh             chan struct{}
+	flushCond          *sync.Cond // signaled when a flush completes, used for backpressure
+	wg                 sync.WaitGroup
+	config             LSMConfig
+	cache              *KeyCache
+	nodeID             string      // node identifier for vector clock
+	writeCounter       uint32      // atomic counter to reduce IsFull check frequency
+	flushing           atomic.Bool // true when flushLoop is processing (prevents race with flushMemTable)
+	compactionStrategy string      // "leveled" or "tiered"
 }
 
 type LSMConfig struct {
-	MemTableSize          int64         // soft limit for memtable
-	MaxMemtableBytes     int64         // total memory for all memtables
+	MemTableSize        int64         // soft limit for memtable
+	MaxMemtableBytes    int64         // total memory for all memtables
 	WALSyncInterval     time.Duration // background sync interval (0 = sync every write)
 	WALCheckpointBytes  int64         // bytes written before checkpoint sync (0 = use default)
 	WALMaxBufferedBytes int64         // max buffered before forced flush (0 = use default)
 	CompactionThreshold int           // SSTables per level to trigger compaction
 	L0SizeThreshold     int64         // hard limit for memtable
 	BloomFPRate         float64
-	LevelRatio          float64 // size ratio between levels
-	KeyCacheSize        int     // number of entries in key cache
-	NodeID              string  // node identifier for vector clock
-	MaxImmutable       int     // max immutable memtables in queue (prevent memory leak)
+	LevelRatio          float64          // size ratio between levels
+	KeyCacheSize        int              // number of entries in key cache
+	NodeID              string           // node identifier for vector clock
+	MaxImmutable        int              // max immutable memtables in queue (prevent memory leak)
 	Metrics             *metrics.Metrics // optional metrics recorder
-	CompactionStrategy  string  // "leveled" or "tiered" (default: "tiered" for write-heavy)
+	CompactionStrategy  string           // "leveled" or "tiered" (default: "tiered" for write-heavy)
 }
 
 const (
 	DefaultKeyCacheSize    = 1000000           // 1M entries (increased from 10K)
 	DefaultLevelRatio      = 10.0              // 10x ratio (fewer levels = faster)
 	DefaultL0SizeThreshold = 256 * 1024 * 1024 // 256MB (2x memtable)
-	DefaultMaxImmutable   = 10                 // Max immutable memtables (100MB each = 1GB max)
+	DefaultMaxImmutable    = 10                // Max immutable memtables (100MB each = 1GB max)
 )
 
 func (e *LSMEngine) PutEntry(entry storage.Entry) error {
@@ -114,16 +114,16 @@ func NewLSMEngineWithConfig(dir string, cfg LSMConfig) (*LSMEngine, error) {
 		return nil, err
 	}
 
-e := &LSMEngine{
-		active:        NewMemTable(cfg.MemTableSize),
-		wal:         wal,
-		dir:         dir,
-		flushCh:     make(chan struct{}, 1),
-		directFlushCh: make(chan struct{}, 1),
-		compCh:     make(chan struct{}, 1),
-		config:      cfg,
-		cache:      newKeyCache(cfg.KeyCacheSize),
-		nodeID:     cfg.NodeID,
+	e := &LSMEngine{
+		active:             NewMemTable(cfg.MemTableSize),
+		wal:                wal,
+		dir:                dir,
+		flushCh:            make(chan struct{}, 1),
+		directFlushCh:      make(chan struct{}, 1),
+		compCh:             make(chan struct{}, 1),
+		config:             cfg,
+		cache:              newKeyCache(cfg.KeyCacheSize),
+		nodeID:             cfg.NodeID,
 		compactionStrategy: cfg.CompactionStrategy,
 	}
 	e.flushCond = sync.NewCond(&e.mu)
@@ -141,11 +141,9 @@ e := &LSMEngine{
 		return nil, err
 	}
 
-	// Flush any replayed WAL entries to SSTables and reset the WAL.
-	// This ensures clean state and prevents WAL from growing across restarts.
-	if err := e.flushMemTable(); err != nil {
-		return nil, err
-	}
+	// Keep replayed entries in the active memtable until the flush worker starts.
+	// A synchronous flush here waits forever because flushLoop is not running yet.
+	// Normal memtable rotation persists these entries without discarding the WAL.
 
 	// Persist the version counter so it survives WAL reset
 	if err := e.saveVersion(); err != nil {
@@ -910,8 +908,8 @@ func (e *LSMEngine) compactTiered() {
 
 	// Group by size tier
 	type tierGroup struct {
-		tier    int64
-		ssts    []*SSTableReader
+		tier int64
+		ssts []*SSTableReader
 	}
 	tierMap := make(map[int64][]*SSTableReader)
 	for _, sst := range allSSTs {
@@ -1253,7 +1251,7 @@ func (e *LSMEngine) flushMemTable() error {
 			totalSSTs += len(level)
 		}
 		e.mu.RUnlock()
-		
+
 		shouldCompact := false
 		if e.compactionStrategy == "tiered" {
 			shouldCompact = totalSSTs >= e.config.CompactionThreshold
@@ -1264,7 +1262,7 @@ func (e *LSMEngine) flushMemTable() error {
 			}
 			shouldCompact = l0Count >= e.maxFilesForLevel(0)
 		}
-		
+
 		if shouldCompact {
 			select {
 			case e.compCh <- struct{}{}:

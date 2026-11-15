@@ -1,27 +1,27 @@
 #!/bin/bash
 set -e
 
-# Kasoku Production Setup Script
+# TurboDynamo Production Setup Script
 # Usage: ./setup.sh [single|cluster|kubernetes]
 
 DEPLOY_DIR="$(dirname "$0")/../deploy"
 
 MODE=${1:-single}
 
-echo "[INFO] Setting up Kasoku - $MODE mode"
+echo "[INFO] Setting up TurboDynamo - $MODE mode"
 
 case $MODE in
     single)
-        echo "[INFO] Starting single-node Kasoku..."
+        echo "[INFO] Starting single-node TurboDynamo..."
         docker-compose -f "$DEPLOY_DIR/docker-compose.single.yml" up -d
-        echo "[OK] Kasoku running at http://localhost:9000"
+        echo "[OK] TurboDynamo running at http://localhost:9000"
         echo "   Health check: http://localhost:9000/health"
         echo "   Put key: curl -X PUT http://localhost:9000/kv/mykey -d 'value'"
         echo "   Get key: curl http://localhost:9000/kv/mykey"
         ;;
 
     cluster)
-        echo "[INFO] Starting 3-node Kasoku cluster..."
+        echo "[INFO] Starting 3-node TurboDynamo cluster..."
         docker-compose -f "$DEPLOY_DIR/docker-compose.yml" up -d
         echo "[OK] Cluster running:"
         echo "   Node 1: http://localhost:9001"
@@ -33,7 +33,7 @@ case $MODE in
         ;;
 
     cluster-with-monitoring)
-        echo "[INFO] Starting Kasoku cluster with monitoring..."
+        echo "[INFO] Starting TurboDynamo cluster with monitoring..."
         docker-compose -f "$DEPLOY_DIR/docker-compose.yml" --profile monitoring up -d
         echo "[OK] Cluster running with monitoring:"
         echo "   Node 1: http://localhost:9001"
@@ -46,13 +46,13 @@ case $MODE in
     kubernetes)
         echo "[INFO] Deploying to Kubernetes..."
         kubectl apply -f "$DEPLOY_DIR/kubernetes/"
-        echo "[OK] Kasoku deployed to Kubernetes"
-        echo "   Check status: kubectl get pods -n kasoku"
-        echo "   Access: kubectl port-forward svc/kasoku-http 9000:80"
+        echo "[OK] TurboDynamo deployed to Kubernetes"
+        echo "   Check status: kubectl get pods -n turbodynamo"
+        echo "   Access: kubectl port-forward svc/turbodynamo-http 9000:80"
         ;;
 
     stop)
-        echo "[INFO] Stopping Kasoku..."
+        echo "[INFO] Stopping TurboDynamo..."
         docker-compose -f "$DEPLOY_DIR/docker-compose.single.yml" down 2>/dev/null || true
         docker-compose -f "$DEPLOY_DIR/docker-compose.yml" down 2>/dev/null || true
         echo "[OK] Stopped"
@@ -68,7 +68,7 @@ case $MODE in
     *)
         echo "Usage: ./setup.sh [single|cluster|cluster-with-monitoring|kubernetes|stop|clean]"
         echo ""
-        echo "  single              - Start single-node Kasoku"
+        echo "  single              - Start single-node TurboDynamo"
         echo "  cluster             - Start 3-node cluster"
         echo "  cluster-with-monitoring - Start cluster with Prometheus & Grafana"
         echo "  kubernetes          - Deploy to Kubernetes"

@@ -3,7 +3,7 @@ package lsm
 import (
 	"testing"
 
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
 	"github.com/stretchr/testify/assert"
 )
 

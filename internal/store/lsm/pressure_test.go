@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
 )
 
 func Benchmark_Pressure_ReadHotKeys(b *testing.B) {

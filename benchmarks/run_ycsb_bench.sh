@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Kasoku YCSB-Standard Benchmark Suite
+# TurboDynamo YCSB-Standard Benchmark Suite
 # Runs YCSB workloads (A–F) against a 3-node cluster
 #
 # Usage:
@@ -66,19 +66,19 @@ banner() {
 
 cleanup_all() {
     echo -e "${DIM}Cleaning up processes...${RESET}"
-    pkill -f "kasoku-server" 2>/dev/null || true
+    pkill -f "turbodynamo-server" 2>/dev/null || true
     sleep 1
 }
 
 trap cleanup_all EXIT
 
 # ── Build ────────────────────────────────────────────────────────────────────
-banner "KASOKU YCSB BENCHMARK SUITE"
+banner "TURBODYNAMO YCSB BENCHMARK SUITE"
 
 echo -e "${CYAN}Building...${RESET}"
-go build -o kasoku-server ./cmd/server/
+go build -o turbodynamo-server ./cmd/server/
 go build -o ycsb-bench ./cmd/ycsb/
-echo -e "${GREEN}✓ Built kasoku-server + ycsb-bench${RESET}"
+echo -e "${GREEN}✓ Built turbodynamo-server + ycsb-bench${RESET}"
 
 echo ""
 echo -e "  Record Count:  ${BOLD}${RECORD_COUNT}${RESET}"
@@ -93,16 +93,16 @@ run_cluster_workload() {
     local wl="$1"
     
     # Kill any leftover servers and clean data
-    pkill -f "kasoku-server" 2>/dev/null || true
+    pkill -f "turbodynamo-server" 2>/dev/null || true
     sleep 1
     rm -rf data/bench-node1 data/bench-node2 data/bench-node3
 
     # Start fresh 3-node cluster
-    ./kasoku-server --config configs/bench-cluster-node1.yaml &>/dev/null &
+    ./turbodynamo-server --config configs/bench-cluster-node1.yaml &>/dev/null &
     local PID1=$!
-    ./kasoku-server --config configs/bench-cluster-node2.yaml &>/dev/null &
+    ./turbodynamo-server --config configs/bench-cluster-node2.yaml &>/dev/null &
     local PID2=$!
-    ./kasoku-server --config configs/bench-cluster-node3.yaml &>/dev/null &
+    ./turbodynamo-server --config configs/bench-cluster-node3.yaml &>/dev/null &
     local PID3=$!
     sleep 2
 
@@ -141,14 +141,14 @@ run_cluster_workload() {
 run_single_workload() {
     local wl="$1"
     
-    pkill -f "kasoku-server" 2>/dev/null || true
+    pkill -f "turbodynamo-server" 2>/dev/null || true
     sleep 1
     rm -rf data/ycsb-single
     mkdir -p data/ycsb-single
 
-    KASOKU_DATA_DIR=./data/ycsb-single \
-    KASOKU_CONFIG=./configs/bench-realistic.yaml \
-    ./kasoku-server &>/dev/null &
+    TURBODYNAMO_DATA_DIR=./data/ycsb-single \
+    TURBODYNAMO_CONFIG=./configs/bench-realistic.yaml \
+    ./turbodynamo-server &>/dev/null &
     local SPID=$!
     sleep 2
 

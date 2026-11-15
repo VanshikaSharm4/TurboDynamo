@@ -27,11 +27,11 @@ const (
 )
 
 type TracingConfig struct {
-	ServiceName    string
-	ExporterType   ExporterType
-	OTLPEndpoint   string
-	OTLPInsecure   bool
-	SamplingRatio  float64
+	ServiceName   string
+	ExporterType  ExporterType
+	OTLPEndpoint  string
+	OTLPInsecure  bool
+	SamplingRatio float64
 }
 
 func InitWithConfig(cfg TracingConfig) (func(context.Context) error, error) {
@@ -71,7 +71,7 @@ func InitWithConfig(cfg TracingConfig) (func(context.Context) error, error) {
 		resource.WithAttributes(
 			semconv.ServiceName(cfg.ServiceName),
 			semconv.ServiceVersion("1.0.0"),
-			attribute.String("environment", os.Getenv("KASOKU_ENV")),
+			attribute.String("environment", os.Getenv("TURBODYNAMO_ENV")),
 		),
 	)
 	if err != nil {
@@ -100,19 +100,19 @@ func InitWithConfig(cfg TracingConfig) (func(context.Context) error, error) {
 }
 
 func Init(serviceName string) (func(context.Context) error, error) {
-	exporterType := ExporterType(os.Getenv("KASOKU_TRACING_EXPORTER"))
-	
+	exporterType := ExporterType(os.Getenv("TURBODYNAMO_TRACING_EXPORTER"))
+
 	cfg := TracingConfig{
-		ServiceName:    serviceName,
-		ExporterType:   exporterType,
-		OTLPEndpoint:   os.Getenv("KASOKU_OTLP_ENDPOINT"),
-		OTLPInsecure:   os.Getenv("KASOKU_OTLP_INSECURE") == "true",
-		SamplingRatio:  1.0,
+		ServiceName:   serviceName,
+		ExporterType:  exporterType,
+		OTLPEndpoint:  os.Getenv("TURBODYNAMO_OTLP_ENDPOINT"),
+		OTLPInsecure:  os.Getenv("TURBODYNAMO_OTLP_INSECURE") == "true",
+		SamplingRatio: 1.0,
 	}
 
 	if exporterType == "" {
 		exporterType = ExporterStdout
-		if os.Getenv("KASOKU_TRACING") != "true" {
+		if os.Getenv("TURBODYNAMO_TRACING") != "true" {
 			exporterType = ExporterNone
 		}
 	}
@@ -127,7 +127,7 @@ func Init(serviceName string) (func(context.Context) error, error) {
 
 func Tracer() trace.Tracer {
 	if tracer == nil {
-		tracer = otel.Tracer("kasoku")
+		tracer = otel.Tracer("turbodynamo")
 	}
 	return tracer
 }

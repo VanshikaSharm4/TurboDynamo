@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
 )
 
 func Benchmark_KeyCache_Hit(b *testing.B) {

@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

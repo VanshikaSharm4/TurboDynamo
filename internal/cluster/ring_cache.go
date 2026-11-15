@@ -14,9 +14,9 @@ type RingCache struct {
 }
 
 type ringCacheBucket struct {
-	mu   sync.RWMutex
-	key  string
-	val  []string
+	mu  sync.RWMutex
+	key string
+	val []string
 }
 
 // func newRingCache(cap int) *RingCache {

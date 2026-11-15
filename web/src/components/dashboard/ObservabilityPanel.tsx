@@ -24,7 +24,7 @@ interface MetricCardProps {
   alert?: boolean
 }
 
-function Sparkline({ data, color = '#10b981', height = 40 }: { data: TimePoint[]; color?: string; height?: number }) {
+function Sparkline({ data, color = '#656565', height = 40 }: { data: TimePoint[]; color?: string; height?: number }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data}>
@@ -41,7 +41,7 @@ function Sparkline({ data, color = '#10b981', height = 40 }: { data: TimePoint[]
   )
 }
 
-function MetricCard({ label, value, delta, deltaValue, icon, color = '#10b981', alert }: MetricCardProps) {
+function MetricCard({ label, value, delta, deltaValue, icon, color = '#656565', alert }: MetricCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -51,7 +51,7 @@ function MetricCard({ label, value, delta, deltaValue, icon, color = '#10b981', 
     >
       <div className="metric-card-header">
         <span className="metric-card-icon" style={{ color }}>{icon}</span>
-        {alert && <AlertTriangle size={14} color="#ef4444" />}
+        {alert && <AlertTriangle size={14} color="#555555" />}
       </div>
       <span className="metric-card-value">{value}</span>
       <span className="metric-card-label">{label}</span>
@@ -84,36 +84,36 @@ export function ObservabilityPanel({ apiBase }: { apiBase: string }) {
 
   const deriveAlerts = useCallback((parsed: Record<string, number>): AlertRule[] => {
     const derived: AlertRule[] = []
-    const getTotal = parsed['kasoku_requests_total{operation="get",status="success"}'] || 0
-    const putTotal = parsed['kasoku_requests_total{operation="put",status="success"}'] || 0
-    const getErrors = parsed['kasoku_requests_total{operation="get",status="error"}'] || 0
-    const putErrors = parsed['kasoku_requests_total{operation="put",status="error"}'] || 0
+    const getTotal = parsed['turbodynamo_requests_total{operation="get",status="success"}'] || 0
+    const putTotal = parsed['turbodynamo_requests_total{operation="put",status="success"}'] || 0
+    const getErrors = parsed['turbodynamo_requests_total{operation="get",status="error"}'] || 0
+    const putErrors = parsed['turbodynamo_requests_total{operation="put",status="error"}'] || 0
     const totalReqs = getTotal + putTotal
     const totalErrors = getErrors + putErrors
 
     if (totalReqs > 0 && totalErrors / totalReqs > 0.01) {
       derived.push({
-        name: 'KasokuHighErrorRate',
+        name: 'TurboDynamoHighErrorRate',
         severity: 'warning',
         state: 'firing',
         message: `Error rate is ${((totalErrors / totalReqs) * 100).toFixed(1)}%`,
       })
     }
 
-    const nodes = parsed['kasoku_cluster_nodes_active'] ?? 1
+    const nodes = parsed['turbodynamo_cluster_nodes_active'] ?? 1
     if (nodes < 2) {
       derived.push({
-        name: 'KasokuClusterNodeCountLow',
+        name: 'TurboDynamoClusterNodeCountLow',
         severity: 'critical',
         state: 'firing',
         message: `Only ${nodes} node(s) active`,
       })
     }
 
-    const hints = parsed['kasoku_cluster_pending_hints'] ?? 0
+    const hints = parsed['turbodynamo_cluster_pending_hints'] ?? 0
     if (hints > 100) {
       derived.push({
-        name: 'KasokuHighPendingHints',
+        name: 'TurboDynamoHighPendingHints',
         severity: 'warning',
         state: 'firing',
         message: `${hints} pending hinted handoffs`,
@@ -123,7 +123,7 @@ export function ObservabilityPanel({ apiBase }: { apiBase: string }) {
     const goroutines = parsed['go_goroutines'] || 0
     if (goroutines > 5000) {
       derived.push({
-        name: 'KasokuHighGoroutineCount',
+        name: 'TurboDynamoHighGoroutineCount',
         severity: 'warning',
         state: 'firing',
         message: `${goroutines} goroutines running`,
@@ -170,8 +170,8 @@ export function ObservabilityPanel({ apiBase }: { apiBase: string }) {
           setAlerts(deriveAlerts(parsed))
 
           // Push to history for sparklines
-          const getReqs = parsed['kasoku_requests_total{operation="get",status="success"}'] || 0
-          const putReqs = parsed['kasoku_requests_total{operation="put",status="success"}'] || 0
+          const getReqs = parsed['turbodynamo_requests_total{operation="get",status="success"}'] || 0
+          const putReqs = parsed['turbodynamo_requests_total{operation="put",status="success"}'] || 0
           const prevGets = prevRef.current['gets'] ?? getReqs
           const prevPuts = prevRef.current['puts'] ?? putReqs
           prevRef.current['gets'] = getReqs
@@ -180,9 +180,9 @@ export function ObservabilityPanel({ apiBase }: { apiBase: string }) {
           pushHistory('putRate', Math.max(0, (putReqs - prevPuts) / 5))
           pushHistory('goroutines', parsed['go_goroutines'] || 0)
           pushHistory('heapAlloc', parsed['go_memstats_heap_alloc_bytes'] || 0)
-          pushHistory('keys', parsed['kasoku_storage_engine_keys_total'] || 0)
-          pushHistory('pendingHints', parsed['kasoku_cluster_pending_hints'] || 0)
-          pushHistory('activeNodes', parsed['kasoku_cluster_nodes_active'] || 1)
+          pushHistory('keys', parsed['turbodynamo_storage_engine_keys_total'] || 0)
+          pushHistory('pendingHints', parsed['turbodynamo_cluster_pending_hints'] || 0)
+          pushHistory('activeNodes', parsed['turbodynamo_cluster_nodes_active'] || 1)
         }
       } catch {
         if (!cancelled) setServerDown(true)
@@ -220,7 +220,7 @@ export function ObservabilityPanel({ apiBase }: { apiBase: string }) {
           <div className="metrics-offline-body">
             <h3>Server Unreachable</h3>
             <p>Start the server with metrics enabled to see observability data.</p>
-            <code className="metrics-offline-cmd">KASOKU_CONFIG=kasoku.yaml ./kasoku-server</code>
+            <code className="metrics-offline-cmd">TURBODYNAMO_CONFIG=turbodynamo.yaml ./turbodynamo-server</code>
           </div>
         </div>
       </div>
@@ -239,10 +239,10 @@ export function ObservabilityPanel({ apiBase }: { apiBase: string }) {
   const hintsHist = history['pendingHints'] || []
   const nodesHist = history['activeNodes'] || []
 
-  const totalReqs = (rawMetrics['kasoku_requests_total{operation="get",status="success"}'] || 0)
-    + (rawMetrics['kasoku_requests_total{operation="put",status="success"}'] || 0)
-  const totalErrors = (rawMetrics['kasoku_requests_total{operation="get",status="error"}'] || 0)
-    + (rawMetrics['kasoku_requests_total{operation="put",status="error"}'] || 0)
+  const totalReqs = (rawMetrics['turbodynamo_requests_total{operation="get",status="success"}'] || 0)
+    + (rawMetrics['turbodynamo_requests_total{operation="put",status="success"}'] || 0)
+  const totalErrors = (rawMetrics['turbodynamo_requests_total{operation="get",status="error"}'] || 0)
+    + (rawMetrics['turbodynamo_requests_total{operation="put",status="error"}'] || 0)
   const availability = totalReqs > 0 ? ((1 - totalErrors / totalReqs) * 100).toFixed(3) : '100.000'
 
   return (
@@ -295,41 +295,41 @@ export function ObservabilityPanel({ apiBase }: { apiBase: string }) {
           label="Availability"
           value={`${availability}%`}
           icon={<CheckCircle size={16} />}
-          color={parseFloat(availability) >= 99.9 ? '#10b981' : parseFloat(availability) >= 99 ? '#f59e0b' : '#ef4444'}
+          color={parseFloat(availability) >= 99.9 ? '#656565' : parseFloat(availability) >= 99 ? '#999999' : '#555555'}
           alert={parseFloat(availability) < 99}
         />
         <MetricCard
           label="Keys"
-          value={String(Math.round(rawMetrics['kasoku_storage_engine_keys_total'] || 0)).toLocaleString()}
+          value={String(Math.round(rawMetrics['turbodynamo_storage_engine_keys_total'] || 0)).toLocaleString()}
           icon={<Database size={16} />}
-          color="#a855f7"
+          color="#adadad"
         />
         <MetricCard
           label="Cluster Nodes"
-          value={String(Math.round(rawMetrics['kasoku_cluster_nodes_active'] || 1))}
+          value={String(Math.round(rawMetrics['turbodynamo_cluster_nodes_active'] || 1))}
           icon={<Server size={16} />}
-          color="#3b82f6"
-          alert={(rawMetrics['kasoku_cluster_nodes_active'] || 1) < 2}
+          color="#858585"
+          alert={(rawMetrics['turbodynamo_cluster_nodes_active'] || 1) < 2}
         />
         <MetricCard
           label="Pending Hints"
-          value={String(Math.round(rawMetrics['kasoku_cluster_pending_hints'] || 0))}
+          value={String(Math.round(rawMetrics['turbodynamo_cluster_pending_hints'] || 0))}
           icon={<Clock size={16} />}
-          color="#f59e0b"
-          alert={(rawMetrics['kasoku_cluster_pending_hints'] || 0) > 100}
+          color="#999999"
+          alert={(rawMetrics['turbodynamo_cluster_pending_hints'] || 0) > 100}
         />
         <MetricCard
           label="Goroutines"
           value={String(Math.round(rawMetrics['go_goroutines'] || 0))}
           icon={<Zap size={16} />}
-          color="#e11d5a"
+          color="#737373"
           alert={(rawMetrics['go_goroutines'] || 0) > 5000}
         />
         <MetricCard
           label="Heap Alloc"
           value={`${((rawMetrics['go_memstats_heap_alloc_bytes'] || 0) / (1024 * 1024)).toFixed(1)} MB`}
           icon={<Activity size={16} />}
-          color="#6366f1"
+          color="#b0b0b0"
         />
       </div>
 
@@ -341,11 +341,11 @@ export function ObservabilityPanel({ apiBase }: { apiBase: string }) {
           <div className="metrics-charts">
             <div className="metrics-chart">
               <h3>GET Rate (ops/sec)</h3>
-              <Sparkline data={getRateHist} color="#10b981" height={80} />
+              <Sparkline data={getRateHist} color="#656565" height={80} />
             </div>
             <div className="metrics-chart">
               <h3>PUT Rate (ops/sec)</h3>
-              <Sparkline data={putRateHist} color="#e11d5a" height={80} />
+              <Sparkline data={putRateHist} color="#737373" height={80} />
             </div>
           </div>
         </div>
@@ -356,11 +356,11 @@ export function ObservabilityPanel({ apiBase }: { apiBase: string }) {
           <div className="metrics-charts">
             <div className="metrics-chart">
               <h3>Active Keys</h3>
-              <Sparkline data={keysHist} color="#a855f7" height={80} />
+              <Sparkline data={keysHist} color="#adadad" height={80} />
             </div>
             <div className="metrics-chart">
               <h3>L0 SSTables</h3>
-              <Sparkline data={history['l0SSTables'] || []} color="#f59e0b" height={80} />
+              <Sparkline data={history['l0SSTables'] || []} color="#999999" height={80} />
             </div>
           </div>
         </div>
@@ -371,11 +371,11 @@ export function ObservabilityPanel({ apiBase }: { apiBase: string }) {
           <div className="metrics-charts">
             <div className="metrics-chart">
               <h3>Active Nodes</h3>
-              <Sparkline data={nodesHist} color="#10b981" height={80} />
+              <Sparkline data={nodesHist} color="#656565" height={80} />
             </div>
             <div className="metrics-chart">
               <h3>Pending Hints</h3>
-              <Sparkline data={hintsHist} color="#ef4444" height={80} />
+              <Sparkline data={hintsHist} color="#555555" height={80} />
             </div>
           </div>
         </div>
@@ -386,11 +386,11 @@ export function ObservabilityPanel({ apiBase }: { apiBase: string }) {
           <div className="metrics-charts">
             <div className="metrics-chart">
               <h3>Goroutines</h3>
-              <Sparkline data={goroutineHist} color="#e11d5a" height={80} />
+              <Sparkline data={goroutineHist} color="#737373" height={80} />
             </div>
             <div className="metrics-chart">
               <h3>Heap Alloc (MB)</h3>
-              <Sparkline data={heapHist.map(h => ({ time: h.time, value: h.value / (1024 * 1024) }))} color="#6366f1" height={80} />
+              <Sparkline data={heapHist.map(h => ({ time: h.time, value: h.value / (1024 * 1024) }))} color="#b0b0b0" height={80} />
             </div>
           </div>
         </div>
@@ -406,7 +406,7 @@ export function ObservabilityPanel({ apiBase }: { apiBase: string }) {
       >
         <h3 style={{ marginBottom: 12 }}>External Monitoring</h3>
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <a href="http://localhost:3000/d/kasoku-overview" target="_blank" rel="noopener noreferrer" className="external-link-card">
+          <a href="http://localhost:3000/d/turbodynamo-overview" target="_blank" rel="noopener noreferrer" className="external-link-card">
             <BarChartIcon size={16} />
             <span>Grafana</span>
             <ExternalLink size={12} />

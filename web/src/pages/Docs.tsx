@@ -24,6 +24,8 @@ export function Docs() {
   }
 
   useEffect(() => {
+    const target = window.location.hash.slice(1)
+    if (target) document.getElementById(target)?.scrollIntoView({ block: 'start' })
     const scrollContainer = document.querySelector('.docs-main-scroll')
     if (!scrollContainer) return
 
@@ -42,10 +44,10 @@ export function Docs() {
           }
         })
       },
-      { 
+      {
         root: scrollContainer,
-        threshold: 0.1, 
-        rootMargin: '-10% 0% -50% 0%' 
+        threshold: 0.1,
+        rootMargin: '-10% 0% -50% 0%'
       }
     )
 
@@ -67,7 +69,7 @@ export function Docs() {
       <header className="docs-header">
         <div className="docs-header-left">
           <Link to="/" className="nav-logo">
-            <img src="/logo.svg" alt="kasoku" className="nav-logo-img" />
+
           </Link>
         </div>
         <div className="docs-header-right">
@@ -78,11 +80,11 @@ export function Docs() {
       <div className="docs-layout">
         <aside className="docs-sidebar">
           <div className="docs-nav-group">
-            <span className="docs-nav-title">Kasoku Manual</span>
+            <span className="docs-nav-title">TurboDynamo Manual</span>
             {sections.map(s => (
-              <button 
-                key={s.id} 
-                onClick={() => scrollTo(s.id)} 
+              <button
+                key={s.id}
+                onClick={() => scrollTo(s.id)}
                 className={`docs-nav-link ${activeSection === s.id ? 'active' : ''}`}
                 style={{ border: 'none', background: 'none', textAlign: 'left', width: '100%', cursor: 'pointer', outline: 'none' }}
               >
@@ -106,22 +108,22 @@ export function Docs() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              The Kasoku Geeta.
+              The TurboDynamo Geeta.
             </motion.h1>
             <motion.p
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: 0.1 }}
             >
-               An industrial-grade guide to the masterless, distributed LSM key-value engine. 
+               An industrial-grade guide to the masterless, distributed LSM key-value engine.
                Built for heavy write workloads and eventual consistency at scale.
             </motion.p>
           </div>
 
           <div className="docs-content-area" style={{ paddingTop: 0 }}>
             {/* Overview Section */}
-            <motion.section 
-              id="overview" 
+            <motion.section
+              id="overview"
               className="docs-section"
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
@@ -132,8 +134,8 @@ export function Docs() {
                 Philosophy & Architecture
               </h2>
               <p>
-                Kasoku is built on the principle of <strong>symmetric architecture</strong>. Unlike traditional 
-                Leader/Follower (Primary/Secondary) systems where a single node handles all writes, Kasoku has no single point of failure and no leader election overhead. 
+                TurboDynamo is built on the principle of <strong>symmetric architecture</strong>. Unlike traditional
+                Leader/Follower (Primary/Secondary) systems where a single node handles all writes, TurboDynamo has no single point of failure and no leader election overhead.
               </p>
               <p>
                 By utilizing a <strong>Leaderless (Dynamo-style)</strong> model, any node can act as a coordinator for any request. This design prioritizes <strong>Write Availability</strong> and horizontal scalability, making it ideal for high-throughput, globally distributed workloads.
@@ -160,10 +162,20 @@ export function Docs() {
                 <div className="docs-icon"><Terminal size={18} strokeWidth={2} /></div>
                 Installation
               </h2>
-              <p>Kasoku is written in pure Go and requires version 1.25+. It has zero external C-bindings or runtime dependencies.</p>
+              <p>TurboDynamo is written in pure Go and requires version 1.25+. It has zero external C-bindings or runtime dependencies.</p>
               <div className="docs-code-block">
-                <pre>go get github.com/VanshikaSharm4/TurboDynamo.git</pre>
+                <pre>{`git clone https://github.com/VanshikaSharm4/TurboDynamo.git
+cd TurboDynamo
+go build -o bin/turbodynamo-server.exe ./cmd/server
+.\\bin\\turbodynamo-server.exe
+
+# In a second PowerShell terminal, from the repository directory:
+cd web
+npm ci
+npm run dev`}</pre>
               </div>
+              <p>The dashboard also needs Node.js 22 or newer. Open <code>http://localhost:3001/dashboard</code>, then select <strong>Live backend</strong> to use your server. HTTP runs on port 9001 and gRPC on 9100 with the included <code>turbodynamo.yaml</code>. Database files stay in <code>data/</code>.</p>
+              <p>For macOS or Linux, build with <code>go build -o bin/turbodynamo-server ./cmd/server</code> and run <code>./bin/turbodynamo-server</code>. Stop services with Ctrl+C.</p>
             </section>
 
             {/* Storage Engine Section */}
@@ -173,9 +185,9 @@ export function Docs() {
                 LSM Storage Engine
               </h2>
               <p>
-                The storage engine is an optimized Log-Structured Merge-Tree (LSM). Unlike B-Trees which use in-place updates, LSM engines turn random writes into sequential I/O by appending updates to a log and merging them later. This design allows Kasoku to saturate disk throughput even on high-latency storage media.
+                The storage engine is an optimized Log-Structured Merge-Tree (LSM). Unlike B-Trees which use in-place updates, LSM engines turn random writes into sequential I/O by appending updates to a log and merging them later. This design allows TurboDynamo to saturate disk throughput even on high-latency storage media.
               </p>
-              
+
               <h3>The Write Path</h3>
               <ol style={{ color: 'var(--text-secondary)', paddingLeft: '20px', marginBottom: '24px' }}>
                 <li style={{ marginBottom: '8px' }}>Append entry to <strong>Write-Ahead Log (WAL)</strong> for durability.</li>
@@ -186,12 +198,12 @@ export function Docs() {
 
               <h3>SSTable Compaction</h3>
               <p>
-                Kasoku supports <strong>Leveled Compaction</strong>. SSTables in Level 0 have overlapping key ranges. Once Level 0 reaches a threshold, it merges into Level 1. From Level 1 onwards, SSTables are partitioned into non-overlapping key ranges, minimizing the "Read Amplification" inherent in LSM systems.
+                TurboDynamo supports <strong>Leveled Compaction</strong>. SSTables in Level 0 have overlapping key ranges. Once Level 0 reaches a threshold, it merges into Level 1. From Level 1 onwards, SSTables are partitioned into non-overlapping key ranges, minimizing the "Read Amplification" inherent in LSM systems.
               </p>
 
               <h3>The Read Path</h3>
               <p>Reads check the <strong>MemTable</strong> first, then immutable memtables. If not found, it queries <strong>SSTables</strong> from newest to oldest. Each SSTable consults a <strong>Bloom Filter</strong> first to avoid unnecessary disk seeks.</p>
-              
+
               <div className="docs-table-wrap">
                 <table className="docs-table">
                   <thead>
@@ -231,13 +243,13 @@ export function Docs() {
               <p>
                 The distribution layer handles partitioning and membership using a fully decentralized P2P model.
               </p>
-              
+
               <h3>Consistent Hashing & vNodes</h3>
-              <p>Kasoku uses a <strong>CRC32 Consistent Hash Ring</strong>. Each physical node is mapped to 150 <strong>Virtual Nodes (vNodes)</strong>. vNodes allow for more granular data distribution and significantly faster cluster rebalancing when a node joins or leaves.</p>
+              <p>TurboDynamo uses a <strong>CRC32 Consistent Hash Ring</strong>. Each physical node is mapped to 150 <strong>Virtual Nodes (vNodes)</strong>. vNodes allow for more granular data distribution and significantly faster cluster rebalancing when a node joins or leaves.</p>
 
               <h3>Gossip & Failure Detection</h3>
               <p>Membership and cluster state are propagated via a <strong>SWIM-inspired Gossip Protocol</strong>. This decentralized approach ensures that every node eventually reaches the same view of the cluster without a central registry.</p>
-              
+
               <p>To handle network jitter, we use a <strong>Phi Accrual Failure Detector</strong>. Instead of a binary "Up/Down" state, it outputs a probability of failure. This allows the system to remain resilient to transient network partitions while quickly reacting to permanent node failures.</p>
             </section>
 
@@ -247,8 +259,8 @@ export function Docs() {
                 <div className="docs-icon"><ShieldCheck size={18} strokeWidth={2} /></div>
                 Quorum & Consistency
               </h2>
-              <p>Kasoku follows a tunable <strong>N/W/R Quorum model</strong> to balance latency and consistency.</p>
-              
+              <p>TurboDynamo follows a tunable <strong>N/W/R Quorum model</strong> to balance latency and consistency.</p>
+
               <div className="docs-table-wrap">
                 <table className="docs-table">
                   <thead>
@@ -280,13 +292,13 @@ export function Docs() {
               <p style={{ fontStyle: 'italic', fontSize: '14px' }}>Requirement: W + R &gt; N (ensures at least one overlapping replica).</p>
 
               <h3>Anti-Entropy (Merkle Trees)</h3>
-              <p>To heal data divergence during prolonged network partitions, Kasoku runs a background <strong>SHA-256 Merkle Tree</strong> reconciliation loop. It compares tree hashes with neighbors to identify and sync only the missing key-ranges, saving significant bandwidth.</p>
+              <p>To heal data divergence during prolonged network partitions, TurboDynamo runs a background <strong>SHA-256 Merkle Tree</strong> reconciliation loop. It compares tree hashes with neighbors to identify and sync only the missing key-ranges, saving significant bandwidth.</p>
 
               <h3>Hinted Handoff</h3>
               <p>If a target node is down during a write request, the coordinator stores a <strong>Hint</strong> locally. Once the target node recovers, the coordinator "hands off" the hint to replay the missed write, ensuring eventually consistent cluster state.</p>
 
               <h3>Read Repair</h3>
-              <p>During a Read Quorum (R), if Kasoku detects that one replica is out-of-date compared to others (based on timestamps), it automatically triggers a background <strong>Read Repair</strong> to update the stale node with the latest value.</p>
+              <p>During a Read Quorum (R), if TurboDynamo detects that one replica is out-of-date compared to others (based on timestamps), it automatically triggers a background <strong>Read Repair</strong> to update the stale node with the latest value.</p>
             </section>
 
             {/* CLI Section */}
@@ -295,7 +307,7 @@ export function Docs() {
                 <div className="docs-icon"><Code2 size={18} strokeWidth={2} /></div>
                 CLI & Interactive Shell
               </h2>
-              <p>The <code>kvctl</code> tool is the primary way to interact with a Kasoku cluster.</p>
+              <p>The <code>kvctl</code> tool is the primary way to interact with a TurboDynamo cluster.</p>
               <div className="docs-code-block">
                 <pre>{`# Basic Operations
 ./kvctl put user:1001 '{"name": "Alice"}'
@@ -304,9 +316,9 @@ export function Docs() {
 
 # Interactive Shell
 ./kvctl shell
-kasoku > SET user:1 "Bob"
-kasoku > GET user:1
-kasoku > INFO`}</pre>
+turbodynamo > SET user:1 "Bob"
+turbodynamo > GET user:1
+turbodynamo > INFO`}</pre>
               </div>
             </section>
 
@@ -317,7 +329,7 @@ kasoku > INFO`}</pre>
                 Performance Benchmarks
               </h2>
               <p>Benchmarks on Apple M1 (8-core ARM64) using the <code>pressure</code> load testing tool (Dynamo-style).</p>
-              
+
               <div className="docs-table-wrap">
                 <table className="docs-table">
                    <thead>
@@ -364,8 +376,8 @@ kasoku > INFO`}</pre>
               </div>
 
               <h3>Dynamo-Style Features</h3>
-              <p>Kasoku implements the core Dynamo paper features for production-grade distributed storage:</p>
-              
+              <p>TurboDynamo implements the core Dynamo paper features for production-grade distributed storage:</p>
+
               <div className="docs-features">
                 <div className="docs-feature">
                   <h4>Sloppy Quorum</h4>
@@ -409,4 +421,3 @@ kasoku > INFO`}</pre>
     </div>
   )
 }
-

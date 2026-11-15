@@ -3,7 +3,7 @@ version: '3.8'
 services:
   prometheus:
     image: prom/prometheus:latest
-    container_name: kasoku-prometheus
+    container_name: turbodynamo-prometheus
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
@@ -23,7 +23,7 @@ services:
 
   alertmanager:
     image: prom/alertmanager:latest
-    container_name: kasoku-alertmanager
+    container_name: turbodynamo-alertmanager
     volumes:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager_data:/alertmanager
@@ -38,7 +38,7 @@ services:
 
   grafana:
     image: grafana/grafana:latest
-    container_name: kasoku-grafana
+    container_name: turbodynamo-grafana
     user: "472"
     depends_on:
       - prometheus
@@ -59,7 +59,7 @@ services:
 
   jaeger:
     image: jaegertracing/all-in-one:latest
-    container_name: kasoku-jaeger
+    container_name: turbodynamo-jaeger
     ports:
       - "16686:16686"
       - "4317:4317"
@@ -73,7 +73,7 @@ services:
 
   loki:
     image: grafana/loki:latest
-    container_name: kasoku-loki
+    container_name: turbodynamo-loki
     ports:
       - "3100:3100"
     volumes:
@@ -86,7 +86,7 @@ services:
 
   node-exporter:
     image: prom/node-exporter:latest
-    container_name: kasoku-node-exporter
+    container_name: turbodynamo-node-exporter
     volumes:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro

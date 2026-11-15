@@ -3,7 +3,7 @@ global:
   evaluation_interval: 15s
 
 scrape_configs:
-  - job_name: 'kasoku'
+  - job_name: 'turbodynamo'
     static_configs:
-      - targets: ['kasoku-node1:9001', 'kasoku-node2:9003', 'kasoku-node3:9005']
+      - targets: ['turbodynamo-node1:9001', 'turbodynamo-node2:9003', 'turbodynamo-node3:9005']
     metrics_path: /metrics

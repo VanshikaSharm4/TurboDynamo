@@ -1,10 +1,10 @@
-# Kasoku - Key-Value Storage Engine
+# TurboDynamo - Key-Value Storage Engine
 
 A high-performance key-value storage engine with LSM-tree and HashMap backends.
 
 ## Overview
 
-Kasoku provides two storage engines:
+TurboDynamo provides two storage engines:
 
 | Engine             | Storage                       | Use Case                             |
 |--------------------|-------------------------------|--------------------------------------|
@@ -14,7 +14,7 @@ Kasoku provides two storage engines:
 ## Installation
 
 ```bash
-go get github.com/VanshikaSharm4/TurboDynamo.git
+go get github.com/VanshikaSharm4/TurboDynamo
 ```
 
 ## Quick Start
@@ -75,7 +75,7 @@ package main
 
 import (
     "log"
-    lsmengine "github.com/VanshikaSharm4/TurboDynamo.git/internal/store/lsm-engine"
+    lsmengine "github.com/VanshikaSharm4/TurboDynamo/internal/store/lsm-engine"
 )
 
 func main() {
@@ -114,7 +114,7 @@ package main
 
 import (
     "log"
-    storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+    storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
 )
 
 func main() {
@@ -288,7 +288,7 @@ Use wildcards in `KEYS` and `SCAN` commands:
 ### Shell Example
 
 ```text
-Kasoku Interactive Shell
+TurboDynamo Interactive Shell
 Commands: SET, GET, DEL, EXISTS, KEYS, SCAN, TTL, INFO, FLUSHALL, DUMP, PING, CLEAR, EXIT
 ──────────────────────────────────────────────────
 127.0.0.1:6379> PING
@@ -355,7 +355,7 @@ Background process that:
 ## Error Handling
 
 ```go
-import storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+import storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
 
 // Common errors
 storage.ErrKeyNotFound   // Key does not exist
@@ -489,7 +489,7 @@ This is the same tradeoff as **Redis AOF "everysec"** mode — acceptable for mo
 ### Benchmark Your Setup
 
 ```bash
-cd /Users/cvlikhith/kasoku
+cd /Users/cvlikhith/turbodynamo
 go test ./internal/store/lsm-engine -bench=Benchmark10KWrites -benchmem -run=^$ -benchtime=1x
 ```
 

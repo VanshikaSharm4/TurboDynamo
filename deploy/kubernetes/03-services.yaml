@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: kasoku
-  namespace: kasoku
+  name: turbodynamo
+  namespace: turbodynamo
 spec:
   clusterIP: None
   selector:
-    app: kasoku
+    app: turbodynamo
   ports:
   - name: http
     port: 9000
@@ -15,12 +15,12 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: kasoku-http
-  namespace: kasoku
+  name: turbodynamo-http
+  namespace: turbodynamo
 spec:
   type: LoadBalancer
   selector:
-    app: kasoku
+    app: turbodynamo
   ports:
   - name: http
     port: 80

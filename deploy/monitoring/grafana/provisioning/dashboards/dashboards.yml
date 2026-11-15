@@ -1,9 +1,9 @@
 apiVersion: 1
 
 providers:
-  - name: 'Kasoku Dashboards'
+  - name: 'TurboDynamo Dashboards'
     orgId: 1
-    folder: 'Kasoku'
+    folder: 'TurboDynamo'
     type: file
     disableDeletion: false
     updateIntervalSeconds: 10

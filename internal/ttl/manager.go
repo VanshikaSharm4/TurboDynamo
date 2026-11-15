@@ -226,17 +226,15 @@ func (pq *PriorityQueue) Push(x interface{}) {
 	pq.items[item.Key] = item
 }
 
-
 func (pq *PriorityQueue) Pop() interface{} {
 	n := len(pq.order)
 	item := pq.order[n-1]
-	pq.order[n-1] = nil 
+	pq.order[n-1] = nil
 	item.index = -1
 	pq.order = pq.order[:n-1]
 	delete(pq.items, item.Key)
 	return item
 }
-
 
 func (pq *PriorityQueue) Remove(key string) {
 	item, exists := pq.items[key]

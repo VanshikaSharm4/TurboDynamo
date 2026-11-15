@@ -1,7 +1,7 @@
 import CRC32 from 'crc-32'
 
 /**
- * Hash ring implementation matching Kasoku's Go ring.go exactly.
+ * Hash ring implementation matching TurboDynamo's Go ring.go exactly.
  * Uses CRC32-IEEE (same as Go's crc32.ChecksumIEEE).
  */
 

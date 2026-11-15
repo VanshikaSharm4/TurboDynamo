@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/ring"
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/ring"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
 )
 
 type MockStore struct {
@@ -182,8 +182,8 @@ func TestCluster_IsPrimary(t *testing.T) {
 		Ring:              r,
 		Store:             store,
 		ReplicationFactor: 3,
-		QuorumSize:       1,
-		Members:          members,
+		QuorumSize:        1,
+		Members:           members,
 	}
 
 	c := New(cfg)
@@ -225,8 +225,8 @@ func TestCluster_GetReplicas(t *testing.T) {
 		Ring:              r,
 		Store:             store,
 		ReplicationFactor: 3,
-		QuorumSize:       1,
-		Members:          members,
+		QuorumSize:        1,
+		Members:           members,
 	}
 
 	c := New(cfg)

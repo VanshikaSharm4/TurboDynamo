@@ -11,12 +11,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/merkle"
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/ring"
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/rpc"
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/server"
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/store/lsm"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/merkle"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/ring"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/rpc"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/server"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/store/lsm"
 )
 
 type NodeConfig struct {
@@ -58,7 +58,7 @@ type Node struct {
 	mu             sync.RWMutex
 	vectorClocks   map[string]storage.VectorClock // per-key vector clocks
 	vcMu           sync.RWMutex
-	repSemaphore   *Semaphore // Limits concurrent outgoing replications
+	repSemaphore   *Semaphore   // Limits concurrent outgoing replications
 	httpClient     *http.Client // persistent client for Merkle/gossip requests
 }
 
@@ -217,17 +217,17 @@ func (n *Node) GetStatus() map[string]any {
 	n.mu.RUnlock()
 
 	return map[string]any{
-		"node_id":        n.cfg.NodeID,
-		"engine_status":  "ok",
-		"http_addr":      n.cfg.HTTPAddr,
-		"ring_nodes":     n.ring.NodeCount(),
-		"total_members":  n.members.MemberCount(),
-		"alive_members":  alive,
-		"peers_healthy":  alive,
-		"hints_pending":  n.hints.PendingCount(),
-		"replication":    n.cfg.N,
-		"write_quorum":   n.cfg.W,
-		"read_quorum":    n.cfg.R,
+		"node_id":       n.cfg.NodeID,
+		"engine_status": "ok",
+		"http_addr":     n.cfg.HTTPAddr,
+		"ring_nodes":    n.ring.NodeCount(),
+		"total_members": n.members.MemberCount(),
+		"alive_members": alive,
+		"peers_healthy": alive,
+		"hints_pending": n.hints.PendingCount(),
+		"replication":   n.cfg.N,
+		"write_quorum":  n.cfg.W,
+		"read_quorum":   n.cfg.R,
 	}
 }
 
@@ -257,8 +257,6 @@ func (n *Node) getOrCreateVectorClock(key string) storage.VectorClock {
 
 	return vc
 }
-
-
 
 func (n *Node) HandleReplicate(ctx context.Context, key string, value []byte, targetNode string) error {
 	if targetNode != "" {
@@ -546,12 +544,12 @@ func (n *Node) hintDeliveryLoop() {
 				}
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
-				
+
 				// Try gRPC first to preserve full storage.Entry metadata
 				if grpcClient, ok := n.cluster.GetGRPCClient(targetNode); ok {
 					return grpcClient.ReplicatedPutBinaryInternal(ctx, entry)
 				}
-				
+
 				// We still use HTTP ReplicatedPutBinary as a fallback, but gRPC is preferred
 				// For the standalone Node implementation, we use HTTP since grpcClients isn't directly exposed
 				return client.ReplicatedPutBinary(ctx, entry.Key, entry.Value)

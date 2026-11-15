@@ -39,14 +39,14 @@ export function Landing() {
   return (
     <div className="landing" ref={containerRef}>
       <motion.div className="scroll-progress" style={{ scaleX }} />
-      
+
       <motion.div className="parallax-blob-1" style={{ y: yBG1 }} />
       <motion.div className="parallax-blob-2" style={{ y: yBG2 }} />
 
       <nav className="nav">
         <div className="nav-inner">
           <a href="#top" className="nav-logo">
-            <img src="/logo.svg" alt="kasoku" className="nav-logo-img" />
+
           </a>
           <div className="nav-links">
             <a href="#features" className="nav-link-underline">Features</a>

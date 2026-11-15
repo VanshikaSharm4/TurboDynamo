@@ -1,6 +1,6 @@
 # Deployment Guide
 
-This guide covers production deployment options for Kasoku.
+This guide covers production deployment options for TurboDynamo.
 
 ## Prerequisites
 
@@ -15,8 +15,8 @@ This guide covers production deployment options for Kasoku.
 
 ```bash
 # Clone and build
-git clone https://github.com/VanshikaSharm4/TurboDynamo.git.git
-cd Kasoku
+git clone https://github.com/VanshikaSharm4/TurboDynamo.git
+cd TurboDynamo
 
 # Start single node
 ./setup.sh single
@@ -35,8 +35,8 @@ All Docker files are in `deploy/` directory.
 
 ```bash
 # Build and run
-docker build -t kasoku ./deploy
-docker run -p 9000:9000 kasoku
+docker build -t turbodynamo ./deploy
+docker run -p 9000:9000 turbodynamo
 
 # Or use docker-compose
 docker-compose -f deploy/docker-compose.single.yml up -d
@@ -52,7 +52,7 @@ docker-compose -f deploy/docker-compose.yml up -d
 docker-compose -f deploy/docker-compose.yml ps
 
 # View logs
-docker-compose -f deploy/docker-compose.yml logs -f kasoku-node1
+docker-compose -f deploy/docker-compose.yml logs -f turbodynamo-node1
 ```
 
 ### With Monitoring
@@ -62,7 +62,7 @@ docker-compose -f deploy/docker-compose.yml logs -f kasoku-node1
 docker-compose -f deploy/docker-compose.yml --profile monitoring up -d
 
 # Access services:
-# - Kasoku: http://localhost:9001, :9002, :9003
+# - TurboDynamo: http://localhost:9001, :9002, :9003
 # - Prometheus: http://localhost:9090
 # - Grafana: http://localhost:3000 (admin/admin)
 ```
@@ -75,23 +75,23 @@ docker-compose -f deploy/docker-compose.yml --profile monitoring up -d
 
 ```bash
 # Create namespace
-kubectl create namespace kasoku
+kubectl create namespace turbodynamo
 
 # Apply configuration
-kubectl apply -f deploy/kubernetes/kasoku-statefulset.yaml
+kubectl apply -f deploy/kubernetes/turbodynamo-statefulset.yaml
 
 # Check status
-kubectl get pods -n kasoku
+kubectl get pods -n turbodynamo
 ```
 
 ### Access Services
 
 ```bash
 # Port forward to local
-kubectl port-forward -n kasoku svc/kasoku-http 9000:80
+kubectl port-forward -n turbodynamo svc/turbodynamo-http 9000:80
 
 # Or use LoadBalancer (cloud provider)
-kubectl expose -n kasoku svc/kasoku-http --type=LoadBalancer
+kubectl expose -n turbodynamo svc/turbodynamo-http --type=LoadBalancer
 ```
 
 ---
@@ -100,13 +100,13 @@ kubectl expose -n kasoku svc/kasoku-http --type=LoadBalancer
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `KASOKU_NODE_ID` | `node-1` | Unique node identifier |
-| `KASOKU_HTTP_PORT` | `9000` | HTTP server port |
-| `KASOKU_CLUSTER_ENABLED` | `false` | Enable cluster mode |
-| `KASOKU_CLUSTER_PEERS` | - | Comma-separated peer addresses |
-| `KASOKU_QUORUM_SIZE` | `2` | Write quorum (W) |
-| `KASOKU_READ_QUORUM` | `2` | Read quorum (R) |
-| `KASOKU_DATA_DIR` | `/data` | Data storage directory |
+| `TURBODYNAMO_NODE_ID` | `node-1` | Unique node identifier |
+| `TURBODYNAMO_HTTP_PORT` | `9000` | HTTP server port |
+| `TURBODYNAMO_CLUSTER_ENABLED` | `false` | Enable cluster mode |
+| `TURBODYNAMO_CLUSTER_PEERS` | - | Comma-separated peer addresses |
+| `TURBODYNAMO_QUORUM_SIZE` | `2` | Write quorum (W) |
+| `TURBODYNAMO_READ_QUORUM` | `2` | Read quorum (R) |
+| `TURBODYNAMO_DATA_DIR` | `/data` | Data storage directory |
 | `GOMEMLIMIT` | - | Go memory limit (e.g., `1GiB`) |
 | `GOMAXPROCS` | - | CPU cores (e.g., `2`) |
 
@@ -179,18 +179,18 @@ curl http://localhost:9000/metrics
 
 ### Prometheus Metrics
 
-Kasoku exposes Prometheus metrics at `/metrics`:
+TurboDynamo exposes Prometheus metrics at `/metrics`:
 
 ```
-kasoku_up{node_id="node-1"} 1
-kasoku_peers_healthy{node_id="node-1"} 3
-kasoku_hints_pending{node_id="node-1"} 0
-kasoku_ring_nodes{node_id="node-1"} 3
+turbodynamo_up{node_id="node-1"} 1
+turbodynamo_peers_healthy{node_id="node-1"} 3
+turbodynamo_hints_pending{node_id="node-1"} 0
+turbodynamo_ring_nodes{node_id="node-1"} 3
 ```
 
 ### Grafana Dashboard
 
-Import `deploy/grafana/kasoku-dashboard.json` into Grafana for pre-built dashboards.
+Import `deploy/grafana/turbodynamo-dashboard.json` into Grafana for pre-built dashboards.
 
 ---
 

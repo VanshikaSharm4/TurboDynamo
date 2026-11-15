@@ -5,7 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"syscall"
+
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,7 +35,11 @@ func TestCrashDurability(t *testing.T) {
 			if i == 499 {
 				// syscall.Kill(pid, SIGKILL) is the same as 'kill -9'
 				// This process dies immediately.
-				_ = syscall.Kill(syscall.Getpid(), syscall.SIGKILL)
+				process, err := os.FindProcess(os.Getpid())
+				if err != nil {
+					os.Exit(2)
+				}
+				_ = process.Kill()
 			}
 		}
 		return

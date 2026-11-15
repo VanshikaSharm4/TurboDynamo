@@ -1,0 +1,350 @@
+package main
+
+import (
+	"context"
+	"crypto/tls"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"flag"
+	turbodynamoapi "github.com/VanshikaSharm4/TurboDynamo/api"
+	"github.com/VanshikaSharm4/TurboDynamo/cmd/server/handler"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/cluster"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/config"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/metrics"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/ring"
+	rpcgrpc "github.com/VanshikaSharm4/TurboDynamo/internal/rpc/grpc"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/store/lsm"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/tracing"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/keepalive"
+)
+
+func main() {
+	// Reduce GC frequency for high-throughput workloads
+	if os.Getenv("GOGC") == "" {
+		os.Setenv("GOGC", "300")
+	}
+
+	// Parse command line flags
+	cfgPathFlag := flag.String("config", "", "Path to config file")
+	nodeIDFlag := flag.String("node-id", "", "Node ID (overrides config)")
+	portFlag := flag.Int("port", 0, "HTTP port (overrides config)")
+	flag.Parse()
+
+	// Load configuration
+	cfgPath := *cfgPathFlag
+	if cfgPath == "" {
+		cfgPath = os.Getenv("TURBODYNAMO_CONFIG")
+		if cfgPath == "" {
+			cfgPath = "turbodynamo.yaml"
+		}
+	}
+
+	cfg, err := config.Load(cfgPath)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to load config: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Validate configuration
+	if err := cfg.Validate(); err != nil {
+		fmt.Fprintf(os.Stderr, "invalid config: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Apply flag overrides
+	if *nodeIDFlag != "" {
+		cfg.Cluster.NodeID = *nodeIDFlag
+	}
+	if *portFlag != 0 {
+		cfg.HTTPPort = *portFlag
+		cfg.Cluster.NodeAddr = fmt.Sprintf("http://localhost:%d", *portFlag)
+	}
+
+	// Default config
+	nodeAddr := cfg.Cluster.NodeAddr
+	if nodeAddr == "" {
+		nodeAddr = fmt.Sprintf("http://localhost:%d", cfg.HTTPPort)
+	}
+
+	// Initialize logger
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level:     slog.LevelInfo,
+		AddSource: true,
+	}))
+
+	// Initialize distributed tracing (only if enabled in config)
+	if os.Getenv("TURBODYNAMO_TRACING") == "true" {
+		tracerShutdown, err := tracing.Init("turbodynamo-server")
+		if err != nil {
+			logger.Warn("tracing init failed", "error", err)
+		} else {
+			defer func() {
+				if err := tracerShutdown(context.Background()); err != nil {
+					logger.Error("tracing shutdown error", "error", err)
+				}
+			}()
+			logger.Info("distributed tracing initialized")
+		}
+	}
+
+	// Initialize metrics
+	m := metrics.New()
+
+	// Initialize storage engine (LSM Engine)
+	store, err := lsm.NewLSMEngineWithConfig(cfg.DataDir, lsm.LSMConfig{
+		MemTableSize:        cfg.Memory.MemTableSize,
+		MaxMemtableBytes:    cfg.Memory.MaxMemtableBytes,
+		WALSyncInterval:     cfg.WAL.SyncInterval,
+		WALCheckpointBytes:  cfg.WAL.CheckpointBytes,
+		WALMaxBufferedBytes: cfg.WAL.MaxBufferedBytes,
+		CompactionThreshold: cfg.Compaction.Threshold,
+		L0SizeThreshold:     cfg.Compaction.L0SizeThreshold,
+		BloomFPRate:         cfg.Memory.BloomFPRate,
+		LevelRatio:          cfg.LSM.LevelRatio,
+		Metrics:             m,
+		CompactionStrategy:  cfg.Compaction.Strategy,
+	})
+	if err != nil {
+		logger.Error("failed to create storage engine", "error", err)
+		fmt.Fprintf(os.Stderr, "failed to create storage engine: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Initialize block cache from config
+	lsm.InitBlockCache(cfg.Memory.BlockCacheSize)
+	logger.Info("block cache initialized", "size_bytes", cfg.Memory.BlockCacheSize)
+
+	// Create HTTP server
+	var server *handler.Server
+
+	if cfg.Cluster.Enabled {
+		// Distributed mode with consistent hashing
+		logger.Info("starting in distributed mode",
+			"node_id", cfg.Cluster.NodeID,
+			"node_addr", nodeAddr,
+			"replication_factor", cfg.Cluster.ReplicationFactor,
+			"vnodes", cfg.Cluster.VNodes,
+		)
+
+		// Create consistent hashing ring
+		// NOTE: NewDistributed() will add this node to the ring
+		r := ring.New(cfg.Cluster.VNodes)
+
+		// get gRPC port for cluster config
+		clusterGRPCPort := cfg.GRPCPort
+		if clusterGRPCPort == 0 {
+			clusterGRPCPort = cfg.Port + 2
+		}
+
+		// Create cluster config — use nodeAddr as NodeID for ring consistency
+		clusterCfg := cluster.ClusterConfig{
+			NodeID:            nodeAddr, // Use URL as ID for ring consistency
+			NodeAddr:          nodeAddr,
+			GRPCPort:          clusterGRPCPort,
+			Ring:              r,
+			Store:             store,
+			ReplicationFactor: cfg.Cluster.ReplicationFactor,
+			QuorumSize:        cfg.Cluster.QuorumSize,
+			ReadQuorum:        cfg.Cluster.ReadQuorum,
+			RPCTimeout:        time.Duration(cfg.Cluster.RPCTimeoutMs) * time.Millisecond,
+			Logger:            logger,
+			Peers:             cfg.Cluster.Peers,
+			PeerGRPCAddrs:     cfg.Cluster.PeerGRPCAddrs,
+			Metrics:           m,
+		}
+
+		server = handler.NewDistributed(store, nodeAddr, nodeAddr, logger, m, &clusterCfg)
+
+		// Add peer nodes to the ring using their node_addr URLs as identity
+		for _, peer := range cfg.Cluster.Peers {
+			r.AddNode(peer)
+		}
+	} else {
+		// Single-node mode
+		logger.Info("starting in single-node mode",
+			"node_id", cfg.Cluster.NodeID,
+			"addr", nodeAddr,
+		)
+
+		server = handler.New(store, cfg.Cluster.NodeID, nodeAddr, logger, m)
+	}
+
+	// Setup routes
+	mux := http.NewServeMux()
+	server.RegisterRoutes(mux)
+
+	// Apply middleware (tracing -> recovery -> logging -> auth -> rate limit)
+	var httpHandler http.Handler = handler.WithLogging(logger)(
+		handler.WithRecovery(logger)(
+			handler.WithTracing()(mux),
+		),
+	)
+
+	// Apply rate limiting if enabled
+	if cfg.RateLimit.Enabled {
+		rl := handler.NewRateLimiter(cfg.RateLimit.RequestsPerSecond, cfg.RateLimit.Burst, true)
+		httpHandler = handler.RateLimitMiddlewareFromServer(httpHandler, rl)
+	}
+
+	// Apply authentication if enabled
+	if cfg.Auth.Enabled && cfg.Auth.APIKey != "" {
+		authHandler := &handler.AuthMiddleware{}
+		httpHandler = authHandler.Wrap(httpHandler, cfg.Auth.APIKey, true)
+	}
+
+	// Background metrics scraping
+	metricsStop := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				stats := store.Stats()
+				m.SetStorageKeys(stats.KeyCount)
+				m.SetStorageBytes(stats.MemBytes, stats.DiskBytes)
+				m.RecordUptime(cfg.Cluster.NodeID)
+
+				// Report LSM level SSTable counts
+				store.RecordLevelMetrics()
+
+				if cfg.Cluster.Enabled && server != nil && server.Cluster() != nil {
+					c := server.Cluster()
+					m.SetClusterNodes(len(cfg.Cluster.Peers) + 1)
+
+					// Report pending hints
+					if hints := c.GetHintsForNode(""); hints != nil {
+						m.SetPendingHints(len(hints))
+					}
+
+					// Report phi suspicion for all known peers
+					for _, peer := range cfg.Cluster.Peers {
+						// Phi is not directly exposed; we skip for now
+						_ = peer
+					}
+				}
+			case <-metricsStop:
+				return
+			}
+		}
+	}()
+
+	listenPort := cfg.HTTPPort
+	addr := fmt.Sprintf(":%d", listenPort)
+	logger.Info("starting HTTP server", "addr", addr, "node_id", cfg.Cluster.NodeID)
+
+	httpServer := &http.Server{
+		Addr:              addr,
+		Handler:           httpHandler,
+		ReadTimeout:       10 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
+	// Start HTTP/HTTPS server in background (goroutine)
+	var httpErr error
+	if cfg.TLS.Enabled {
+		cert, err := tls.LoadX509KeyPair(cfg.TLS.CertFile, cfg.TLS.KeyFile)
+		if err != nil {
+			logger.Error("failed to load TLS cert", "error", err)
+			fmt.Fprintf(os.Stderr, "failed to load TLS cert: %v\n", err)
+			os.Exit(1)
+		}
+		httpServer.TLSConfig = &tls.Config{
+			Certificates: []tls.Certificate{cert},
+			MinVersion:   tls.VersionTLS12,
+		}
+		logger.Info("TLS enabled", "cert", cfg.TLS.CertFile)
+		go func() { httpErr = httpServer.ListenAndServeTLS(cfg.TLS.CertFile, cfg.TLS.KeyFile) }()
+	} else {
+		go func() { httpErr = httpServer.ListenAndServe() }()
+	}
+
+	grpcPort := cfg.GRPCPort
+	if grpcPort == 0 {
+		grpcPort = cfg.Port + 2
+	}
+	grpcAddr := fmt.Sprintf(":%d", grpcPort)
+	logger.Info("starting gRPC server", "addr", grpcAddr, "node_id", cfg.Cluster.NodeID)
+
+	grpcOpts := []grpc.ServerOption{
+		grpc.MaxConcurrentStreams(1000),
+		grpc.ReadBufferSize(1024 * 1024),
+		grpc.WriteBufferSize(1024 * 1024),
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             5 * time.Second,
+			PermitWithoutStream: true,
+		}),
+	}
+	if cfg.TLS.Enabled {
+		cert, err := tls.LoadX509KeyPair(cfg.TLS.CertFile, cfg.TLS.KeyFile)
+		if err != nil {
+			logger.Error("failed to load TLS cert", "error", err)
+			os.Exit(1)
+		}
+		grpcOpts = append(grpcOpts, grpc.Creds(credentials.NewServerTLSFromCert(&cert)))
+		logger.Info("gRPC TLS enabled")
+	}
+
+	grpcServer := grpc.NewServer(grpcOpts...)
+	grpcSrv := rpcgrpc.NewServer(store, nodeAddr, nodeAddr, logger)
+	if cfg.Cluster.Enabled && server != nil && server.Cluster() != nil {
+		grpcSrv.SetCluster(server.Cluster())
+	}
+	turbodynamoapi.RegisterTurboDynamoServiceServer(grpcServer, grpcSrv)
+
+	go func() {
+		listener, err := net.Listen("tcp", grpcAddr)
+		if err != nil {
+			logger.Error("gRPC listener error", "error", err)
+			return
+		}
+		if err := grpcServer.Serve(listener); err != nil {
+			logger.Error("gRPC server error", "error", err)
+		}
+	}()
+
+	// Graceful shutdown
+	done := make(chan struct{})
+	go func() {
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+		<-sig
+
+		logger.Info("shutting down server")
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		if err := httpServer.Shutdown(ctx); err != nil {
+			logger.Error("server shutdown error", "error", err)
+		}
+
+		grpcServer.GracefulStop()
+
+		close(metricsStop)
+
+		if err := store.Close(); err != nil {
+			logger.Error("store close error", "error", err)
+		}
+
+		close(done)
+	}()
+
+	// Block until shutdown completes or a server error occurs
+	if err := httpErr; err != nil && err != http.ErrServerClosed {
+		logger.Error("server error", "error", err)
+		fmt.Fprintf(os.Stderr, "server error: %v\n", err)
+	}
+
+	<-done
+}

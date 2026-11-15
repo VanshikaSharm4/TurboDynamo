@@ -19,7 +19,7 @@ interface TooltipState {
 const VNODE_COUNT = 150
 const REPLICA_COUNT = 3
 
-export function ClusterStatus({ apiBase }: { apiBase: string }) {
+export function ClusterStatus({ apiBase, preview = false }: { apiBase: string; preview?: boolean }) {
   const [nodes, setNodes] = useState<NodeInfo[]>([])
   const [loading, setLoading] = useState(true)
   const [clusterDisabled, setClusterDisabled] = useState(false)
@@ -56,6 +56,12 @@ export function ClusterStatus({ apiBase }: { apiBase: string }) {
   }, [ring])
 
   useEffect(() => {
+    if (preview) {
+      setNodes([1, 2, 3].map(i => ({ id: `node-${i}`, addr: `http://localhost:${9001 + (i - 1) * 10}`, status: 'alive' as const, phi: 100 / 3 })))
+      setClusterDisabled(false)
+      setLoading(false)
+      return
+    }
     let cancelled = false
 
     const fetchCluster = async () => {
@@ -133,7 +139,7 @@ export function ClusterStatus({ apiBase }: { apiBase: string }) {
     fetchCluster()
     const interval = setInterval(fetchCluster, 5000) // poll every 5s
     return () => { cancelled = true; clearInterval(interval) }
-  }, [apiBase])
+  }, [apiBase, preview])
 
   if (loading) {
     return (
@@ -202,9 +208,9 @@ export function ClusterStatus({ apiBase }: { apiBase: string }) {
           <div className="metrics-offline-body">
             <h3>No Nodes Detected</h3>
             <p>
-              The cluster appears to have no active members. Make sure your Kasoku server is running with cluster mode enabled.
+              The cluster appears to have no active members. Make sure your TurboDynamo server is running with cluster mode enabled.
             </p>
-            <code className="metrics-offline-cmd">KASOKU_CONFIG=kasoku.yaml ./kasoku-server</code>
+            <code className="metrics-offline-cmd">TURBODYNAMO_CONFIG=turbodynamo.yaml ./turbodynamo-server</code>
           </div>
         </div>
       )}
@@ -321,7 +327,7 @@ function HashRingVisual({
 
   // Unique node colors
   const nodeColors: Record<string, string> = {}
-  const palette = ['#e11d5a', '#f43f5e', '#fb7185', '#fda4af', '#10b981', '#f59e0b', '#3b82f6', '#a855f7']
+  const palette = ['#737373', '#929292', '#b3b3b3', '#cccccc', '#656565', '#999999', '#858585', '#adadad']
   const uniqueNodes = Array.from(ring.nodes)
   uniqueNodes.forEach((id, i) => {
     nodeColors[id] = palette[i % palette.length]
@@ -359,7 +365,7 @@ function HashRingVisual({
                 cx={x}
                 cy={y}
                 r={isHighlighted ? 4 : 2}
-                fill={isHighlighted ? '#ef4444' : color}
+                fill={isHighlighted ? '#555555' : color}
                 opacity={isHighlighted ? 1 : 0.5}
                 style={{ cursor: 'pointer' }}
                 onMouseEnter={(e) => {
@@ -380,7 +386,7 @@ function HashRingVisual({
                   cy={y}
                   r={8}
                   fill="none"
-                  stroke="#ef4444"
+                  stroke="#555555"
                   strokeWidth="1"
                   opacity={0.6}
                 />
@@ -389,13 +395,12 @@ function HashRingVisual({
           )
         })}
 
-        {/* Real node labels on inner ring */}
-        {Array.from(ring.nodes).map((nodeId) => {
+        {/* Real node labels on inner ring. Each node owns many vnode positions;
+            evenly spaced labels keep every member visible without implying a single node position. */}
+        {Array.from(ring.nodes).map((nodeId, index) => {
           const dist = ring.distribution()
           const count = dist.get(nodeId) || 0
-          const nodeVnodes = ring.vnodes.filter((v: { nodeId: string }) => v.nodeId === nodeId)
-          const avgPos = nodeVnodes.reduce((s: number, v: { position: number }) => s + v.position, 0) / nodeVnodes.length
-          const angle = posToAngle(avgPos)
+          const angle = (index / ring.realNodeCount) * 2 * Math.PI - Math.PI / 2
           const x = cx + nodeRadius * Math.cos(angle)
           const y = cy + nodeRadius * Math.sin(angle)
 
@@ -447,7 +452,7 @@ function HashRingVisual({
                 y1={cy}
                 x2={x}
                 y2={y}
-                stroke="#ef4444"
+                stroke="#555555"
                 strokeWidth="1"
                 strokeDasharray="3 2"
                 opacity={0.5}
@@ -456,14 +461,14 @@ function HashRingVisual({
                 cx={x}
                 cy={y}
                 r={6}
-                fill="#ef4444"
+                fill="#555555"
               />
               <text
                 x={x}
                 y={y - 14}
                 textAnchor="middle"
                 dominantBaseline="central"
-                fill="#ef4444"
+                fill="#555555"
                 fontSize="9"
                 fontFamily="var(--font-mono)"
                 fontWeight="600"

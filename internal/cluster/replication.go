@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
 )
 
 var (
@@ -285,7 +285,7 @@ func (n *Node) ReplicatedDelete(ctx context.Context, key string) error {
 			failures++
 			n.logger.Warn("replica delete failed", "node", res.nodeID, "error", res.err)
 		}
-		
+
 		if failures > len(replicas)-n.cfg.W {
 			break
 		}

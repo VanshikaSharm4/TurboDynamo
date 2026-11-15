@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
 )
 
 // =============================================================================
@@ -46,10 +46,10 @@ import (
 func prodConfig() LSMConfig {
 	return LSMConfig{
 		MemTableSize:        4 * 1024 * 1024,  // 4MB — forces frequent flushes
-		MaxMemtableBytes:    16 * 1024 * 1024,  // 16MB total memtable memory
-		CompactionThreshold: 4,                 // compact after 4 SSTables per level
+		MaxMemtableBytes:    16 * 1024 * 1024, // 16MB total memtable memory
+		CompactionThreshold: 4,                // compact after 4 SSTables per level
 		BloomFPRate:         0.01,
-		KeyCacheSize:        1000,              // tiny cache — force SSTable reads
+		KeyCacheSize:        1000, // tiny cache — force SSTable reads
 		MaxImmutable:        4,
 		NodeID:              "bench-node",
 	}
@@ -108,8 +108,8 @@ func zipfianKey(rng *rand.Rand, numKeys int) string {
 // BenchmarkProd_Get_Cold_SSTable reads keys that are definitely in SSTables.
 // This is the TRUE read performance — not MemTable speed.
 func BenchmarkProd_Get_Cold_SSTable(b *testing.B) {
-	const numKeys = 100_000  // ~100K keys
-	const valueSize = 256    // 256B values → ~25MB on disk
+	const numKeys = 100_000 // ~100K keys
+	const valueSize = 256   // 256B values → ~25MB on disk
 
 	dir, err := os.MkdirTemp("", "prod-bench-cold-*")
 	if err != nil {

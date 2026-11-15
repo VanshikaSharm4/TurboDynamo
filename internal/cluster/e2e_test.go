@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/ring"
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/ring"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
 )
 
 func TestCluster_E2E_SingleNode(t *testing.T) {

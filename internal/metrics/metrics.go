@@ -13,7 +13,7 @@ var (
 	// Requests total counter
 	requestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "kasoku_requests_total",
+			Name: "turbodynamo_requests_total",
 			Help: "Total number of KV requests processed.",
 		},
 		[]string{"operation", "status"},
@@ -22,7 +22,7 @@ var (
 	// Request duration histogram
 	requestDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "kasoku_request_duration_seconds",
+			Name:    "turbodynamo_request_duration_seconds",
 			Help:    "Latency of KV requests in seconds.",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10},
 		},
@@ -32,13 +32,13 @@ var (
 	// Storage metrics
 	storageKeys = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "kasoku_storage_engine_keys_total",
+			Name: "turbodynamo_storage_engine_keys_total",
 			Help: "Total number of active keys in the storage engine.",
 		},
 	)
 	storageBytes = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "kasoku_storage_engine_bytes",
+			Name: "turbodynamo_storage_engine_bytes",
 			Help: "Memory footprint of the storage engine.",
 		},
 		[]string{"type"}, // memory or disk
@@ -47,19 +47,19 @@ var (
 	// Cluster metrics
 	clusterNodes = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "kasoku_cluster_nodes_active",
+			Name: "turbodynamo_cluster_nodes_active",
 			Help: "Number of active nodes in the consistent hash ring.",
 		},
 	)
 	pendingHints = promauto.NewGauge(
 		prometheus.GaugeOpts{
-			Name: "kasoku_cluster_pending_hints",
+			Name: "turbodynamo_cluster_pending_hints",
 			Help: "Number of hinted handoffs waiting for delivery.",
 		},
 	)
 	phiSuspicion = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "kasoku_cluster_phi_suspicion",
+			Name: "turbodynamo_cluster_phi_suspicion",
 			Help: "Current Phi accrual suspicion level per node.",
 		},
 		[]string{"node_id"},
@@ -68,7 +68,7 @@ var (
 	// Replication timing metrics
 	replicationReadLatency = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "kasoku_replication_read_latency_seconds",
+			Name:    "turbodynamo_replication_read_latency_seconds",
 			Help:    "Latency of replicated read operations in seconds.",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5},
 		},
@@ -76,7 +76,7 @@ var (
 	)
 	replicationWriteLatency = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "kasoku_replication_write_latency_seconds",
+			Name:    "turbodynamo_replication_write_latency_seconds",
 			Help:    "Latency of replicated write operations in seconds.",
 			Buckets: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5},
 		},
@@ -84,25 +84,25 @@ var (
 	)
 	replicationConflicts = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "kasoku_replication_conflicts_total",
+			Name: "turbodynamo_replication_conflicts_total",
 			Help: "Total number of vector clock conflicts detected during replication.",
 		},
 	)
 	sloppyQuorumFallbacks = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "kasoku_sloppy_quorum_fallbacks_total",
+			Name: "turbodynamo_sloppy_quorum_fallbacks_total",
 			Help: "Total number of times sloppy quorum had to use fallback nodes.",
 		},
 	)
 	hintedHandoffRetries = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "kasoku_hint_handoff_retries_total",
+			Name: "turbodynamo_hint_handoff_retries_total",
 			Help: "Total number of hinted handoff retry attempts.",
 		},
 	)
 	readRepairCount = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "kasoku_read_repair_total",
+			Name: "turbodynamo_read_repair_total",
 			Help: "Total number of read repair operations.",
 		},
 	)
@@ -110,14 +110,14 @@ var (
 	// LSM engine timing metrics
 	lsmFlushDuration = promauto.NewHistogram(
 		prometheus.HistogramOpts{
-			Name:    "kasoku_lsm_flush_duration_seconds",
+			Name:    "turbodynamo_lsm_flush_duration_seconds",
 			Help:    "Duration of memtable flush to SSTable in seconds.",
 			Buckets: []float64{0.01, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10},
 		},
 	)
 	lsmCompactionDuration = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "kasoku_lsm_compaction_duration_seconds",
+			Name:    "turbodynamo_lsm_compaction_duration_seconds",
 			Help:    "Duration of SSTable compaction in seconds.",
 			Buckets: []float64{0.1, 0.5, 1, 2.5, 5, 10, 30, 60},
 		},
@@ -125,7 +125,7 @@ var (
 	)
 	lsmGetLatency = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "kasoku_lsm_get_latency_seconds",
+			Name:    "turbodynamo_lsm_get_latency_seconds",
 			Help:    "Latency of LSM get operations in seconds.",
 			Buckets: []float64{0.0001, 0.0005, 0.001, 0.005, 0.01, 0.025, 0.05},
 		},
@@ -133,21 +133,21 @@ var (
 	)
 	lsmPutLatency = promauto.NewHistogram(
 		prometheus.HistogramOpts{
-			Name:    "kasoku_lsm_put_latency_seconds",
+			Name:    "turbodynamo_lsm_put_latency_seconds",
 			Help:    "Latency of LSM put operations in seconds.",
 			Buckets: []float64{0.0001, 0.0005, 0.001, 0.005, 0.01, 0.025},
 		},
 	)
 	lsmScanLatency = promauto.NewHistogram(
 		prometheus.HistogramOpts{
-			Name:    "kasoku_lsm_scan_latency_seconds",
+			Name:    "turbodynamo_lsm_scan_latency_seconds",
 			Help:    "Latency of LSM scan operations in seconds.",
 			Buckets: []float64{0.001, 0.01, 0.05, 0.1, 0.5, 1},
 		},
 	)
 	lsmLevelCount = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "kasoku_lsm_level_sstables",
+			Name: "turbodynamo_lsm_level_sstables",
 			Help: "Number of SSTables per LSM level.",
 		},
 		[]string{"level"},
@@ -156,7 +156,7 @@ var (
 	// HTTP handler stage timing
 	httpHandlerLatency = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
-			Name:    "kasoku_http_handler_latency_seconds",
+			Name:    "turbodynamo_http_handler_latency_seconds",
 			Help:    "HTTP handler stage timing without logging overhead.",
 			Buckets: []float64{0.0001, 0.0005, 0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25},
 		},
@@ -166,20 +166,20 @@ var (
 	// Anti-entropy metrics
 	antiEntropySyncCount = promauto.NewCounter(
 		prometheus.CounterOpts{
-			Name: "kasoku_anti_entropy_sync_total",
+			Name: "turbodynamo_anti_entropy_sync_total",
 			Help: "Total number of anti-entropy synchronization rounds.",
 		},
 	)
 	antiEntropySyncKeys = promauto.NewHistogram(
 		prometheus.HistogramOpts{
-			Name:    "kasoku_anti_entropy_keys_synced",
+			Name:    "turbodynamo_anti_entropy_keys_synced",
 			Help:    "Number of keys synced per anti-entropy round.",
 			Buckets: []float64{1, 10, 50, 100, 500, 1000},
 		},
 	)
 	merkleTreeBuildTime = promauto.NewHistogram(
 		prometheus.HistogramOpts{
-			Name:    "kasoku_merkle_tree_build_seconds",
+			Name:    "turbodynamo_merkle_tree_build_seconds",
 			Help:    "Time to build Merkle tree for anti-entropy.",
 			Buckets: []float64{0.01, 0.05, 0.1, 0.5, 1, 5},
 		},
@@ -188,7 +188,7 @@ var (
 	// Node health metrics
 	nodeUptime = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
-			Name: "kasoku_node_uptime_seconds",
+			Name: "turbodynamo_node_uptime_seconds",
 			Help: "Time since node start in seconds.",
 		},
 		[]string{"node_id"},

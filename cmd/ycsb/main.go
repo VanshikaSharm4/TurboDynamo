@@ -14,8 +14,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	grpcrpc "github.com/VanshikaSharm4/TurboDynamo.git/internal/rpc/grpc"
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+	grpcrpc "github.com/VanshikaSharm4/TurboDynamo/internal/rpc/grpc"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
 )
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -23,14 +23,14 @@ import (
 // ──────────────────────────────────────────────────────────────────────────────
 
 type WorkloadProfile struct {
-	Name        string
-	ReadPct     int  // read %
-	UpdatePct   int  // update % (write to existing key)
-	InsertPct   int  // insert % (write new key)
-	ScanPct     int  // scan/range-read %
-	RMWPct      int  // read-modify-write %
+	Name         string
+	ReadPct      int    // read %
+	UpdatePct    int    // update % (write to existing key)
+	InsertPct    int    // insert % (write new key)
+	ScanPct      int    // scan/range-read %
+	RMWPct       int    // read-modify-write %
 	Distribution string // uniform | zipfian | latest
-	Description string
+	Description  string
 }
 
 var workloads = map[string]WorkloadProfile{
@@ -53,14 +53,14 @@ var workloads = map[string]WorkloadProfile{
 // ──────────────────────────────────────────────────────────────────────────────
 
 type ZipfianGenerator struct {
-	items     int64
-	base      int64
-	theta     float64
-	zeta2     float64
-	zetaN     float64
-	alpha     float64
-	eta       float64
-	countFZI  int64
+	items    int64
+	base     int64
+	theta    float64
+	zeta2    float64
+	zetaN    float64
+	alpha    float64
+	eta      float64
+	countFZI int64
 }
 
 func NewZipfian(min, max int64, theta float64) *ZipfianGenerator {
@@ -164,15 +164,15 @@ func (c *LatencyCollector) Record(d time.Duration, ok bool) {
 }
 
 type LatencyStats struct {
-	Ops     int64   `json:"ops"`
-	Errors  int64   `json:"errors"`
-	AvgUs   float64 `json:"avg_us"`
-	P50Us   float64 `json:"p50_us"`
-	P95Us   float64 `json:"p95_us"`
-	P99Us   float64 `json:"p99_us"`
-	P999Us  float64 `json:"p999_us"`
-	MaxUs   float64 `json:"max_us"`
-	MinUs   float64 `json:"min_us"`
+	Ops    int64   `json:"ops"`
+	Errors int64   `json:"errors"`
+	AvgUs  float64 `json:"avg_us"`
+	P50Us  float64 `json:"p50_us"`
+	P95Us  float64 `json:"p95_us"`
+	P99Us  float64 `json:"p99_us"`
+	P999Us float64 `json:"p999_us"`
+	MaxUs  float64 `json:"max_us"`
+	MinUs  float64 `json:"min_us"`
 }
 
 func (c *LatencyCollector) Stats() LatencyStats {

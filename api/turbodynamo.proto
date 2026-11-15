@@ -2,9 +2,9 @@ syntax = "proto3";
 
 package api;
 
-option go_package = "github.com/VanshikaSharm4/TurboDynamo.git/api";
+option go_package = "github.com/VanshikaSharm4/TurboDynamo/api";
 
-service KasokuService {
+service TurboDynamoService {
   rpc Put(PutRequest) returns (PutResponse);
   rpc Get(GetRequest) returns (GetResponse);
   rpc BatchPut(BatchPutRequest) returns (BatchPutResponse);

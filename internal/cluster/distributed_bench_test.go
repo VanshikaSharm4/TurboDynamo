@@ -11,9 +11,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/ring"
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/server"
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/store/lsm"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/ring"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/server"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/store/lsm"
 )
 
 // newTestClusterNode creates a 3-node quorum benchmark node (W=1, R=1).
@@ -26,7 +26,7 @@ func newTestClusterNode(b *testing.B, nodeID string, r *ring.Ring) *testNode {
 	engine, err := lsm.NewLSMEngineWithConfig(dir, lsm.LSMConfig{
 		WALSyncInterval: 100 * time.Millisecond,
 		KeyCacheSize:    1000000,
-		MemTableSize:   256 * 1024 * 1024,
+		MemTableSize:    256 * 1024 * 1024,
 	})
 	if err != nil {
 		b.Fatalf("failed to create LSM engine: %v", err)
@@ -54,7 +54,7 @@ func newTestClusterNode(b *testing.B, nodeID string, r *ring.Ring) *testNode {
 		timeoutTracker: NewAdaptiveTimeout(),
 		logger:         slog.Default(),
 		done:           make(chan struct{}),
-		repSemaphore:  NewSemaphore(1000),
+		repSemaphore:   NewSemaphore(1000),
 	}
 
 	n.cluster = New(ClusterConfig{

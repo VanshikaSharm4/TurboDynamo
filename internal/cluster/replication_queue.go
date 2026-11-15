@@ -10,7 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	rpc "github.com/VanshikaSharm4/TurboDynamo.git/internal/rpc"
+	rpc "github.com/VanshikaSharm4/TurboDynamo/internal/rpc"
 )
 
 const (
@@ -123,7 +123,7 @@ type BackgroundReplicator struct {
 	wg        sync.WaitGroup
 	running   atomic.Bool
 	mu        sync.Mutex
-	logger     *slog.Logger
+	logger    *slog.Logger
 }
 
 func NewBackgroundReplicator(cluster *Cluster, queue *ReplicationQueue, logger *slog.Logger) *BackgroundReplicator {
@@ -291,7 +291,7 @@ func (r *BackgroundReplicator) GetStats() map[string]interface{} {
 // GossipState represents the state exchanged between nodes
 type GossipState struct {
 	NodeID        string
-	NodeAddr     string
+	NodeAddr      string
 	Version       uint64
 	LastHeartbeat int64
 	Membership    map[string]MemberInfo

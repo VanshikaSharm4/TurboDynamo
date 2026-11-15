@@ -164,9 +164,9 @@ export function SettingsPanel({ apiBase }: { apiBase: string }) {
           <div className="metrics-offline-body">
             <h3>Server Unreachable</h3>
             <p>
-              The Kasoku server appears to be offline. Start it with:
+              The TurboDynamo server appears to be offline. Start it with:
             </p>
-            <code className="metrics-offline-cmd">KASOKU_CONFIG=kasoku.yaml ./kasoku-server</code>
+            <code className="metrics-offline-cmd">TURBODYNAMO_CONFIG=turbodynamo.yaml ./turbodynamo-server</code>
             <p className="metrics-offline-hint">
               Runtime config is fetched from <code>/api/v1/node</code>.
             </p>
@@ -206,7 +206,7 @@ export function SettingsPanel({ apiBase }: { apiBase: string }) {
 
       <div className="settings-yaml-ref">
         <FileCode size={16} />
-        <span>Defined in <code>kasoku.yaml</code></span>
+        <span>Defined in <code>turbodynamo.yaml</code></span>
       </div>
     </div>
   )

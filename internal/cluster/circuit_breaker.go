@@ -27,7 +27,7 @@ func (s CircuitState) String() string {
 }
 
 type CircuitBreaker struct {
-	mu             sync.RWMutex
+	mu            sync.RWMutex
 	state         CircuitState
 	failures      int
 	threshold     int

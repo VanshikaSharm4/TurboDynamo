@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
 )
 
 type Hint struct {

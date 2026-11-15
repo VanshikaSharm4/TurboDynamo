@@ -4,13 +4,13 @@
 *.dll
 *.so
 *.dylib
-kasoku
-kasoku-server
-kasoku_bin
+turbodynamo
+turbodynamo-server
+turbodynamo_bin
 kvctl
-server
+/server
 kvctl-new
-kasoku-server-new
+turbodynamo-server-new
 bin/
 grpc_pressure
 pressure
@@ -23,7 +23,7 @@ benchmarks/pressure/pressure
 benchmarks/pressure/pressure-tool
 
 # Node configs
-kasoku-node*.yaml
+turbodynamo-node*.yaml
 node*.yaml
 
 
@@ -59,8 +59,8 @@ L6_*.sst
 logs/
 
 # Configuration (optional - uncomment if you want to ignore)
-# kasoku.yaml
-# kasoku.example.yaml
+# turbodynamo.yaml
+# turbodynamo.example.yaml
 
 # IDE and editor files
 .idea/
@@ -125,7 +125,7 @@ backups/
 
 # Export/Import data
 *.json
-!kasoku.example.yaml
+!turbodynamo.example.yaml
 
 # Docker
 docker-compose.override.yml
@@ -140,7 +140,20 @@ site/
 *.docx
 
 # Comprehensive codebase book (generated documentation)
-KASOKU_BOOK.md
+TURBODYNAMO_BOOK.md
 
 # Certificates
 *.pem
+
+# Required build manifests
+!web/package.json
+!web/package-lock.json
+!web/tsconfig.json
+node_modules/
+*.tsbuildinfo
+
+# Restored application source
+!cmd/server/
+!internal/server/
+
+!cmd/kvctl/

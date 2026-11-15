@@ -3,15 +3,15 @@ import { useRef } from 'react'
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 
 const httpClusterData = [
-  { name: 'Writes', value: 1500, fill: '#e11d5a', displayValue: '1.5K' },
-  { name: 'Reads', value: 2000, fill: '#f43f5e', displayValue: '2K' },
-  { name: 'Total', value: 3500, fill: '#fb7185', displayValue: '3.5K' },
+  { name: 'Writes', value: 1500, fill: '#737373', displayValue: '1.5K' },
+  { name: 'Reads', value: 2000, fill: '#929292', displayValue: '2K' },
+  { name: 'Total', value: 3500, fill: '#b3b3b3', displayValue: '3.5K' },
 ]
 
 const grpcClusterData = [
-  { name: 'Writes', value: 35500, fill: '#e11d5a', displayValue: '35.5K' },
-  { name: 'Reads', value: 42000, fill: '#f43f5e', displayValue: '42K' },
-  { name: 'Total', value: 71200, fill: '#fb7185', displayValue: '71.2K' },
+  { name: 'Writes', value: 35500, fill: '#737373', displayValue: '35.5K' },
+  { name: 'Reads', value: 42000, fill: '#929292', displayValue: '42K' },
+  { name: 'Total', value: 71200, fill: '#b3b3b3', displayValue: '71.2K' },
 ]
 
 const MIN_BAR_HEIGHT = 4
@@ -129,7 +129,7 @@ export function Benchmarks() {
             transition={{ delay: 0.15 }}
             className="benchmark-card"
           >
-            <h3 className="benchmark-card-title">gRPC <span style={{ color: '#22c55e', fontSize: '0.7em' }}>20x faster</span></h3>
+            <h3 className="benchmark-card-title">gRPC <span style={{ color: '#626262', fontSize: '0.7em' }}>20x faster</span></h3>
             <div className="benchmark-chart">
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={grpcClusterData} margin={{ top: 24, right: 8, bottom: 0, left: 0 }}>

@@ -1,25 +1,25 @@
 version: '3.8'
 
 services:
-  kasoku:
+  turbodynamo:
     build: .
-    container_name: kasoku
+    container_name: turbodynamo
     ports:
       - "9000:9000"
     environment:
       # Node Configuration
-      - KASOKU_NODE_ID=node-1
-      - KASOKU_HTTP_PORT=9000
-      - KASOKU_DATA_DIR=/data
+      - TURBODYNAMO_NODE_ID=node-1
+      - TURBODYNAMO_HTTP_PORT=9000
+      - TURBODYNAMO_DATA_DIR=/data
       
       # Cluster Configuration (Disabled for standalone)
-      - KASOKU_CLUSTER_ENABLED=false
+      - TURBODYNAMO_CLUSTER_ENABLED=false
       
       # Resource Management
       - GOMAXPROCS=4
       - GOMEMLIMIT=2GiB
     volumes:
-      - kasoku-data:/data
+      - turbodynamo-data:/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
@@ -32,4 +32,4 @@ services:
           memory: 4G
 
 volumes:
-  kasoku-data:
+  turbodynamo-data:

@@ -1,4 +1,4 @@
-module github.com/VanshikaSharm4/TurboDynamo.git
+module github.com/VanshikaSharm4/TurboDynamo
 
 go 1.25.0
 

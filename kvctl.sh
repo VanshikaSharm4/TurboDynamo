@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================================
-# Kasoku CLI Helper - Start server + use kvctl like Redis CLI
+# TurboDynamo CLI Helper - Start server + use kvctl like Redis CLI
 # 
 # Usage:
 #   ./kvctl.sh                         Start server, open interactive shell
@@ -70,9 +70,9 @@ fi
 
 # ── Local mode ─────────────────────────────────────────────────────────────
 # Build if needed
-if [ ! -f ./kasoku-server ]; then
+if [ ! -f ./turbodynamo-server ]; then
     echo -e "${YELLOW}Building server...${RESET}"
-    go build -o kasoku-server ./cmd/server/
+    go build -o turbodynamo-server ./cmd/server/
 fi
 if [ ! -f ./kvctl ] && ! command -v kvctl &>/dev/null; then
     echo -e "${YELLOW}Building kvctl...${RESET}"
@@ -89,7 +89,7 @@ if curl -sf "http://localhost:$SERVER_PORT/health" >/dev/null 2>&1; then
     echo -e "${GREEN}✓${RESET} Server already running on :$SERVER_PORT"
 else
     echo -e "${YELLOW}Starting server on :$SERVER_PORT...${RESET}"
-    ./kasoku-server --config configs/example.yaml &>/tmp/kasoku-server.log &
+    ./turbodynamo-server --config configs/example.yaml &>/tmp/turbodynamo-server.log &
     SERVER_PID=$!
     sleep 2
     if ! curl -sf "http://localhost:$SERVER_PORT/health" >/dev/null 2>&1; then
@@ -98,7 +98,7 @@ else
     if curl -sf "http://localhost:$SERVER_PORT/health" >/dev/null 2>&1; then
         echo -e "${GREEN}✓${RESET} Server running on :$SERVER_PORT"
     else
-        echo -e "${RED}✗${RESET} Server failed to start. Check /tmp/kasoku-server.log"
+        echo -e "${RED}✗${RESET} Server failed to start. Check /tmp/turbodynamo-server.log"
         exit 1
     fi
 fi

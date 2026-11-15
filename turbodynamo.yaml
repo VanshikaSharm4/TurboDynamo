@@ -1,0 +1,8 @@
+data_dir: ./data
+port: 9000
+http_port: 9001
+grpc_port: 9100
+cluster:
+  enabled: false
+  node_id: http://localhost:9001
+  node_addr: http://localhost:9001

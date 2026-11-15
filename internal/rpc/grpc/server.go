@@ -9,14 +9,14 @@ import (
 
 	"time"
 
-	"github.com/VanshikaSharm4/TurboDynamo.git/api"
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/tracing"
+	"github.com/VanshikaSharm4/TurboDynamo/api"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/tracing"
 	"go.opentelemetry.io/otel/attribute"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -37,11 +37,11 @@ type ClusterInterface interface {
 }
 
 type Server struct {
-	api.UnimplementedKasokuServiceServer
-	store    storage.StorageEngine
-	nodeID  string
-	addr    string
-	logger  Logger
+	api.UnimplementedTurboDynamoServiceServer
+	store  storage.StorageEngine
+	nodeID string
+	addr   string
+	logger Logger
 
 	mu      sync.RWMutex
 	cluster ClusterInterface
@@ -52,10 +52,10 @@ type Server struct {
 
 func NewServer(store storage.StorageEngine, nodeID, addr string, logger Logger) *Server {
 	return &Server{
-		store:   store,
-		nodeID:  nodeID,
-		addr:    addr,
-		logger:  logger,
+		store:  store,
+		nodeID: nodeID,
+		addr:   addr,
+		logger: logger,
 	}
 }
 
@@ -98,7 +98,7 @@ func (s *Server) Put(ctx context.Context, req *api.PutRequest) (*api.PutResponse
 			TimeStamp:   ts,
 			VectorClock: vc,
 		}
-		
+
 		if err := s.store.BatchPut([]storage.Entry{entry}); err != nil {
 			span.RecordError(err)
 			return &api.PutResponse{Success: false, Error: err.Error()}, nil
@@ -286,7 +286,7 @@ func (s *Server) Delete(ctx context.Context, req *api.DeleteRequest) (*api.Delet
 			Tombstone:   true,
 			VectorClock: vc,
 		}
-		
+
 		if err := s.store.BatchPut([]storage.Entry{entry}); err != nil {
 			return &api.DeleteResponse{Success: false, Error: err.Error()}, nil
 		}
@@ -365,7 +365,7 @@ func (s *Server) MultiGet(ctx context.Context, req *api.MultiGetRequest) (*api.M
 	return &api.MultiGetResponse{Entries: result}, nil
 }
 
-func (s *Server) Replicate(stream api.KasokuService_ReplicateServer) error {
+func (s *Server) Replicate(stream api.TurboDynamoService_ReplicateServer) error {
 	for {
 		req, err := stream.Recv()
 		if err != nil {
@@ -412,8 +412,6 @@ func (s *Server) Sync(ctx context.Context, req *api.SyncRequest) (*api.SyncRespo
 	return &api.SyncResponse{Entries: filtered, Version: uint64(s.store.Stats().KeyCount)}, nil
 }
 
-
-
 func (s *Server) Start(port int) error {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
@@ -426,7 +424,7 @@ func (s *Server) Start(port int) error {
 			PermitWithoutStream: true,
 		}),
 	)
-	api.RegisterKasokuServiceServer(s.grpcServer, s)
+	api.RegisterTurboDynamoServiceServer(s.grpcServer, s)
 	grpc_health_v1.RegisterHealthServer(s.grpcServer, health.NewServer())
 
 	s.serveDone = make(chan struct{})

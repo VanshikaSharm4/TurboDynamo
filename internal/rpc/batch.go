@@ -19,9 +19,9 @@ type BatchWriteRequest struct {
 
 // BatchWriteResponse is the response from the batch replication endpoint.
 type BatchWriteResponse struct {
-	Success  bool   `json:"success"`
-	Applied  int    `json:"applied"`
-	Error    string `json:"error,omitempty"`
+	Success bool   `json:"success"`
+	Applied int    `json:"applied"`
+	Error   string `json:"error,omitempty"`
 }
 
 // BatchReadRequest is the body for the batch replication read endpoint.

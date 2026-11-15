@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/VanshikaSharm4/TurboDynamo.git/internal/store/lsm"
+	"github.com/VanshikaSharm4/TurboDynamo/internal/store/lsm"
 )
 
 func TestServerBasicOperations(t *testing.T) {

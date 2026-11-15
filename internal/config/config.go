@@ -11,16 +11,16 @@ import (
 
 type Config struct {
 	// Data directory for LSM storage
-	DataDir string `yaml:"data_dir" env:"KASOKU_DATA_DIR" default:"./data"`
+	DataDir string `yaml:"data_dir" env:"TURBODYNAMO_DATA_DIR" default:"./data"`
 
 	// Server port (for HTTP/gRPC)
-	Port int `yaml:"port" env:"KASOKU_PORT" default:"9000"`
+	Port int `yaml:"port" env:"TURBODYNAMO_PORT" default:"9000"`
 
 	// HTTP port (if different from gRPC)
-	HTTPPort int `yaml:"http_port" env:"KASOKU_HTTP_PORT" default:"9001"`
+	HTTPPort int `yaml:"http_port" env:"TURBODYNAMO_HTTP_PORT" default:"9001"`
 
 	// gRPC port (if different from port, defaults to Port+2)
-	GRPCPort int `yaml:"grpc_port" env:"KASOKU_GRPC_PORT" default:"0"`
+	GRPCPort int `yaml:"grpc_port" env:"TURBODYNAMO_GRPC_PORT" default:"0"`
 
 	// TLS settings
 	TLS TLSConfig `yaml:"tls"`
@@ -29,10 +29,10 @@ type Config struct {
 	Auth AuthConfig `yaml:"auth"`
 
 	// Log level (debug, info, warn, error)
-	LogLevel string `yaml:"log_level" env:"KASOKU_LOG_LEVEL" default:"info"`
+	LogLevel string `yaml:"log_level" env:"TURBODYNAMO_LOG_LEVEL" default:"info"`
 
 	// Log file path (empty = stdout)
-	LogFile string `yaml:"log_file" env:"KASOKU_LOG_FILE" default:""`
+	LogFile string `yaml:"log_file" env:"TURBODYNAMO_LOG_FILE" default:""`
 
 	// Rate limiting
 	RateLimit RateLimitConfig `yaml:"rate_limit"`
@@ -55,137 +55,137 @@ type Config struct {
 
 type TLSConfig struct {
 	// Enable TLS
-	Enabled bool `yaml:"enabled" env:"KASOKU_TLS_ENABLED" default:"false"`
+	Enabled bool `yaml:"enabled" env:"TURBODYNAMO_TLS_ENABLED" default:"false"`
 
 	// TLS certificate file
-	CertFile string `yaml:"cert_file" env:"KASOKU_TLS_CERT_FILE" default:"./certs/server-cert.pem"`
+	CertFile string `yaml:"cert_file" env:"TURBODYNAMO_TLS_CERT_FILE" default:"./certs/server-cert.pem"`
 
 	// TLS key file
-	KeyFile string `yaml:"key_file" env:"KASOKU_TLS_KEY_FILE" default:"./certs/server-key.pem"`
+	KeyFile string `yaml:"key_file" env:"TURBODYNAMO_TLS_KEY_FILE" default:"./certs/server-key.pem"`
 
 	// Client certificate verification (none, request, require)
-	ClientAuth string `yaml:"client_auth" env:"KASOKU_TLS_CLIENT_AUTH" default:"none"`
+	ClientAuth string `yaml:"client_auth" env:"TURBODYNAMO_TLS_CLIENT_AUTH" default:"none"`
 }
 
 type AuthConfig struct {
 	// Enable authentication
-	Enabled bool `yaml:"enabled" env:"KASOKU_AUTH_ENABLED" default:"false"`
+	Enabled bool `yaml:"enabled" env:"TURBODYNAMO_AUTH_ENABLED" default:"false"`
 
 	// API key for authentication
-	APIKey string `yaml:"api_key" env:"KASOKU_AUTH_API_KEY"`
+	APIKey string `yaml:"api_key" env:"TURBODYNAMO_AUTH_API_KEY"`
 
 	// JWT secret for JWT authentication
-	JWTSecret string `yaml:"jwt_secret" env:"KASOKU_AUTH_JWT_SECRET"`
+	JWTSecret string `yaml:"jwt_secret" env:"TURBODYNAMO_AUTH_JWT_SECRET"`
 }
 
 type RateLimitConfig struct {
 	// Enable rate limiting
-	Enabled bool `yaml:"enabled" env:"KASOKU_RATE_LIMIT_ENABLED" default:"false"`
+	Enabled bool `yaml:"enabled" env:"TURBODYNAMO_RATE_LIMIT_ENABLED" default:"false"`
 
 	// Requests per second per client
-	RequestsPerSecond int `yaml:"requests_per_second" env:"KASOKU_RATE_LIMIT_RPS" default:"1000"`
+	RequestsPerSecond int `yaml:"requests_per_second" env:"TURBODYNAMO_RATE_LIMIT_RPS" default:"1000"`
 
 	// Burst size
-	Burst int `yaml:"burst" env:"KASOKU_RATE_LIMIT_BURST" default:"100"`
+	Burst int `yaml:"burst" env:"TURBODYNAMO_RATE_LIMIT_BURST" default:"100"`
 }
 
 type LSMConfig struct {
 	// Number of levels in LSM tree
-	Levels int `yaml:"levels" env:"KASOKU_LSM_LEVELS" default:"7"`
+	Levels int `yaml:"levels" env:"TURBODYNAMO_LSM_LEVELS" default:"7"`
 
 	// Size ratio between levels
-	LevelRatio float64 `yaml:"level_ratio" env:"KASOKU_LSM_LEVEL_RATIO" default:"10.0"`
+	LevelRatio float64 `yaml:"level_ratio" env:"TURBODYNAMO_LSM_LEVEL_RATIO" default:"10.0"`
 
 	// Base size for L0
-	L0BaseSize int64 `yaml:"l0_base_size" env:"KASOKU_LSM_L0_BASE_SIZE" default:"67108864"` // 64MB
+	L0BaseSize int64 `yaml:"l0_base_size" env:"TURBODYNAMO_LSM_L0_BASE_SIZE" default:"67108864"` // 64MB
 }
 
 type CompactionConfig struct {
 	// Number of SSTables to trigger compaction
-	Threshold int `yaml:"threshold" env:"KASOKU_COMPACTION_THRESHOLD" default:"4"`
+	Threshold int `yaml:"threshold" env:"TURBODYNAMO_COMPACTION_THRESHOLD" default:"4"`
 
 	// Maximum concurrent compactions
-	MaxConcurrent int `yaml:"max_concurrent" env:"KASOKU_COMPACTION_MAX_CONCURRENT" default:"2"`
+	MaxConcurrent int `yaml:"max_concurrent" env:"TURBODYNAMO_COMPACTION_MAX_CONCURRENT" default:"2"`
 
 	// Size threshold for L0 compaction
-	L0SizeThreshold int64 `yaml:"l0_size_threshold" env:"KASOKU_COMPACTION_L0_SIZE_THRESHOLD" default:"134217728"` // 128MB
+	L0SizeThreshold int64 `yaml:"l0_size_threshold" env:"TURBODYNAMO_COMPACTION_L0_SIZE_THRESHOLD" default:"134217728"` // 128MB
 
 	// Compaction strategy: "leveled" or "tiered" (default: "tiered" for write-heavy)
-	Strategy string `yaml:"strategy" env:"KASOKU_COMPACTION_STRATEGY" default:"tiered"`
+	Strategy string `yaml:"strategy" env:"TURBODYNAMO_COMPACTION_STRATEGY" default:"tiered"`
 }
 
 type MemoryConfig struct {
 	// Memtable size in bytes
-	MemTableSize int64 `yaml:"memtable_size" env:"KASOKU_MEMTABLE_SIZE" default:"67108864"` // 64MB
+	MemTableSize int64 `yaml:"memtable_size" env:"TURBODYNAMO_MEMTABLE_SIZE" default:"67108864"` // 64MB
 
 	// Max memory for memtables
-	MaxMemtableBytes int64 `yaml:"max_memtable_bytes" env:"KASOKU_MAX_MEMTABLE_BYTES" default:"268435456"` // 256MB
+	MaxMemtableBytes int64 `yaml:"max_memtable_bytes" env:"TURBODYNAMO_MAX_MEMTABLE_BYTES" default:"268435456"` // 256MB
 
 	// Bloom filter false positive rate
-	BloomFPRate float64 `yaml:"bloom_fp_rate" env:"KASOKU_BLOOM_FP_RATE" default:"0.01"`
+	BloomFPRate float64 `yaml:"bloom_fp_rate" env:"TURBODYNAMO_BLOOM_FP_RATE" default:"0.01"`
 
 	// Block cache size
-	BlockCacheSize int64 `yaml:"block_cache_size" env:"KASOKU_BLOCK_CACHE_SIZE" default:"134217728"` // 128MB
+	BlockCacheSize int64 `yaml:"block_cache_size" env:"TURBODYNAMO_BLOCK_CACHE_SIZE" default:"134217728"` // 128MB
 }
 
 type WALConfig struct {
 	// Sync every write (safer but slower)
-	Sync bool `yaml:"sync" env:"KASOKU_WAL_SYNC" default:"true"`
+	Sync bool `yaml:"sync" env:"TURBODYNAMO_WAL_SYNC" default:"true"`
 
 	// Sync interval in milliseconds (if sync=false)
-	SyncInterval time.Duration `yaml:"sync_interval" env:"KASOKU_WAL_SYNC_INTERVAL" default:"100ms"`
+	SyncInterval time.Duration `yaml:"sync_interval" env:"TURBODYNAMO_WAL_SYNC_INTERVAL" default:"100ms"`
 
 	// WAL file size before rotation
-	MaxFileSize int64 `yaml:"max_file_size" env:"KASOKU_WAL_MAX_FILE_SIZE" default:"67108864"` // 64MB
+	MaxFileSize int64 `yaml:"max_file_size" env:"TURBODYNAMO_WAL_MAX_FILE_SIZE" default:"67108864"` // 64MB
 
 	// Checkpoint bytes - checkpoint sync after this many bytes
-	CheckpointBytes int64 `yaml:"checkpoint_bytes" env:"KASOKU_WAL_CHECKPOINT_BYTES" default:"67108864"` // 64MB
+	CheckpointBytes int64 `yaml:"checkpoint_bytes" env:"TURBODYNAMO_WAL_CHECKPOINT_BYTES" default:"67108864"` // 64MB
 
 	// Max buffered bytes - max buffered before forced flush
-	MaxBufferedBytes int64 `yaml:"max_buffered_bytes" env:"KASOKU_WAL_MAX_BUFFERED_BYTES" default:"16777216"` // 16MB
+	MaxBufferedBytes int64 `yaml:"max_buffered_bytes" env:"TURBODYNAMO_WAL_MAX_BUFFERED_BYTES" default:"16777216"` // 16MB
 }
 
 type ClusterConfig struct {
 	// Enable cluster mode
-	Enabled bool `yaml:"enabled" env:"KASOKU_CLUSTER_ENABLED" default:"false"`
+	Enabled bool `yaml:"enabled" env:"TURBODYNAMO_CLUSTER_ENABLED" default:"false"`
 
 	// Node ID
-	NodeID string `yaml:"node_id" env:"KASOKU_NODE_ID" default:"node-1"`
+	NodeID string `yaml:"node_id" env:"TURBODYNAMO_NODE_ID" default:"node-1"`
 
 	// Node address (for inter-node communication)
-	NodeAddr string `yaml:"node_addr" env:"KASOKU_NODE_ADDR" default:"http://localhost:9000"`
+	NodeAddr string `yaml:"node_addr" env:"TURBODYNAMO_NODE_ADDR" default:"http://localhost:9000"`
 
 	// gRPC address (for inter-node communication)
-	GRPCAddr string `yaml:"grpc_addr" env:"KASOKU_GRPC_ADDR" default:"localhost:9002"`
+	GRPCAddr string `yaml:"grpc_addr" env:"TURBODYNAMO_GRPC_ADDR" default:"localhost:9002"`
 
 	// Peer nodes
-	Peers []string `yaml:"peers" env:"KASOKU_PEERS"`
+	Peers []string `yaml:"peers" env:"TURBODYNAMO_PEERS"`
 
 	// Peer gRPC addresses (parallel to Peers)
-	PeerGRPCAddrs []string `yaml:"peer_grpc" env:"KASOKU_PEER_GRPC"`
+	PeerGRPCAddrs []string `yaml:"peer_grpc" env:"TURBODYNAMO_PEER_GRPC"`
 
 	// Gossip port
-	GossipPort int `yaml:"gossip_port" env:"KASOKU_GOSSIP_PORT" default:"9002"`
+	GossipPort int `yaml:"gossip_port" env:"TURBODYNAMO_GOSSIP_PORT" default:"9002"`
 
 	// Raft port
-	RaftPort int `yaml:"raft_port" env:"KASOKU_RAFT_PORT" default:"9003"`
+	RaftPort int `yaml:"raft_port" env:"TURBODYNAMO_RAFT_PORT" default:"9003"`
 
 	// Replication factor (number of replicas)
-	ReplicationFactor int `yaml:"replication_factor" env:"KASOKU_REPLICATION_FACTOR" default:"3"`
+	ReplicationFactor int `yaml:"replication_factor" env:"TURBODYNAMO_REPLICATION_FACTOR" default:"3"`
 
 	// Quorum size (minimum acks for write)
-	QuorumSize int `yaml:"quorum_size" env:"KASOKU_QUORUM_SIZE" default:"2"`
+	QuorumSize int `yaml:"quorum_size" env:"TURBODYNAMO_QUORUM_SIZE" default:"2"`
 
 	// Read quorum (minimum replicas to read from)
 	// R = 2 (strong consistency, W+R > N)
 	// R = 1 (eventual consistency, faster but may read stale)
-	ReadQuorum int `yaml:"read_quorum" env:"KASOKU_READ_QUORUM" default:"2"`
+	ReadQuorum int `yaml:"read_quorum" env:"TURBODYNAMO_READ_QUORUM" default:"2"`
 
 	// Virtual nodes per physical node (for consistent hashing)
-	VNodes int `yaml:"vnodes" env:"KASOKU_VNODES" default:"150"`
+	VNodes int `yaml:"vnodes" env:"TURBODYNAMO_VNODES" default:"150"`
 
 	// RPC timeout for inter-node communication
-	RPCTimeoutMs int `yaml:"rpc_timeout_ms" env:"KASOKU_RPC_TIMEOUT_MS" default:"5000"`
+	RPCTimeoutMs int `yaml:"rpc_timeout_ms" env:"TURBODYNAMO_RPC_TIMEOUT_MS" default:"5000"`
 }
 
 func DefaultConfig() *Config {
@@ -265,39 +265,39 @@ func Load(path string) (*Config, error) {
 
 func applyEnvOverrides(cfg *Config) error {
 	// DataDir
-	if v := os.Getenv("KASOKU_DATA_DIR"); v != "" {
+	if v := os.Getenv("TURBODYNAMO_DATA_DIR"); v != "" {
 		cfg.DataDir = v
 	}
 	// Port
-	if v := os.Getenv("KASOKU_PORT"); v != "" {
+	if v := os.Getenv("TURBODYNAMO_PORT"); v != "" {
 		var port int
 		fmt.Sscanf(v, "%d", &port)
 		cfg.Port = port
 	}
 	// HTTPPort
-	if v := os.Getenv("KASOKU_HTTP_PORT"); v != "" {
+	if v := os.Getenv("TURBODYNAMO_HTTP_PORT"); v != "" {
 		var port int
 		fmt.Sscanf(v, "%d", &port)
 		cfg.HTTPPort = port
 	}
 	// LogLevel
-	if v := os.Getenv("KASOKU_LOG_LEVEL"); v != "" {
+	if v := os.Getenv("TURBODYNAMO_LOG_LEVEL"); v != "" {
 		cfg.LogLevel = v
 	}
 	// LogFile
-	if v := os.Getenv("KASOKU_LOG_FILE"); v != "" {
+	if v := os.Getenv("TURBODYNAMO_LOG_FILE"); v != "" {
 		cfg.LogFile = v
 	}
 	// MemTableSize
-	if v := os.Getenv("KASOKU_MEMTABLE_SIZE"); v != "" {
+	if v := os.Getenv("TURBODYNAMO_MEMTABLE_SIZE"); v != "" {
 		fmt.Sscanf(v, "%d", &cfg.Memory.MemTableSize)
 	}
 	// Cluster NodeID
-	if v := os.Getenv("KASOKU_NODE_ID"); v != "" {
+	if v := os.Getenv("TURBODYNAMO_NODE_ID"); v != "" {
 		cfg.Cluster.NodeID = v
 	}
 	// Cluster NodeAddr
-	if v := os.Getenv("KASOKU_NODE_ADDR"); v != "" {
+	if v := os.Getenv("TURBODYNAMO_NODE_ADDR"); v != "" {
 		cfg.Cluster.NodeAddr = v
 	}
 

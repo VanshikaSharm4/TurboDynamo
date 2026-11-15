@@ -1,6 +1,6 @@
-# Kasoku Web Dashboard
+# TurboDynamo Web Dashboard
 
-Real-time monitoring and management interface for the Kasoku distributed key-value store.
+Real-time monitoring and management interface for the TurboDynamo distributed key-value store.
 
 ## Features
 
@@ -17,7 +17,7 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) (or the port shown in terminal).
+Open [http://127.0.0.1:3001](http://127.0.0.1:3001) (or the port shown in terminal).
 
 ## Development
 
@@ -40,3 +40,4 @@ npm run preview
 - Framer Motion (animations)
 - Lucide React (icons)
 - Tailwind CSS (styling)
+Start the backend first from the repository root with `.\bin\turbodynamo-server.exe`. The Vite development proxy targets HTTP port 9001.

@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
 	"github.com/golang/snappy"
 	"github.com/klauspost/compress/zstd"
 )

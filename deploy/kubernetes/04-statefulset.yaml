@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: kasoku
-  namespace: kasoku
+  name: turbodynamo
+  namespace: turbodynamo
 spec:
-  serviceName: kasoku
+  serviceName: turbodynamo
   replicas: 3
   selector:
     matchLabels:
-      app: kasoku
+      app: turbodynamo
   template:
     metadata:
       labels:
-        app: kasoku
+        app: turbodynamo
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "9000"
@@ -20,8 +20,8 @@ spec:
     spec:
       terminationGracePeriodSeconds: 30
       containers:
-      - name: kasoku
-        image: kasoku:latest
+      - name: turbodynamo
+        image: turbodynamo:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 9000
@@ -46,13 +46,13 @@ spec:
           value: "true"
         - name: QUORUM_SIZE
           value: "1"
-        - name: KASOKU_TRACING
+        - name: TURBODYNAMO_TRACING
           value: "true"
-        - name: KASOKU_TRACING_EXPORTER
+        - name: TURBODYNAMO_TRACING_EXPORTER
           value: "otlp"
-        - name: KASOKU_OTLP_ENDPOINT
+        - name: TURBODYNAMO_OTLP_ENDPOINT
           value: "jaeger-collector.monitoring:4317"
-        - name: KASOKU_OTLP_INSECURE
+        - name: TURBODYNAMO_OTLP_INSECURE
           value: "true"
         volumeMounts:
         - name: data
@@ -78,11 +78,11 @@ spec:
         lifecycle:
           preStop:
             exec:
-              command: ["/app/kasoku-server", "--shutdown"]
+              command: ["/app/turbodynamo-server", "--shutdown"]
       volumes:
       - name: config
         configMap:
-          name: kasoku-config
+          name: turbodynamo-config
   volumeClaimTemplates:
   - metadata:
       name: data

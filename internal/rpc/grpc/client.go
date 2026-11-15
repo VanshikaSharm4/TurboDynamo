@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/VanshikaSharm4/TurboDynamo.git/api"
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+	"github.com/VanshikaSharm4/TurboDynamo/api"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -18,7 +18,7 @@ import (
 type ReplicatedClient struct {
 	addr   string
 	conn   *grpc.ClientConn
-	client api.KasokuServiceClient
+	client api.TurboDynamoServiceClient
 	mu     sync.Mutex
 }
 
@@ -34,17 +34,15 @@ func NewReplicatedClient(addr string) (*ReplicatedClient, error) {
 	}
 
 	return &ReplicatedClient{
-		addr:    addr,
-		conn:    conn,
-		client:  api.NewKasokuServiceClient(conn),
+		addr:   addr,
+		conn:   conn,
+		client: api.NewTurboDynamoServiceClient(conn),
 	}, nil
 }
 
 func (c *ReplicatedClient) Close() error {
 	return c.conn.Close()
 }
-
-
 
 // replicationContext creates a context with the x-replication header set.
 // The receiving gRPC server checks this header to bypass the cluster layer

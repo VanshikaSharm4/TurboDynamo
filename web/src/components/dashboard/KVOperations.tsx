@@ -94,7 +94,7 @@ export function KVOperations({ apiBase }: { apiBase: string }) {
     } catch (err: any) {
       setResult({
         type: 'error',
-        message: `Connection error: ${err.message}. Is the Kasoku server running?`,
+        message: `Connection error: ${err.message}. Is the TurboDynamo server running?`,
       })
     } finally {
       setLoading(false)

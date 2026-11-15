@@ -4,7 +4,7 @@
 build: server-bin cli-bin
 
 server-bin:
-	go build -o kasoku-server ./cmd/server
+	go build -o turbodynamo-server ./cmd/server
 
 cli-bin:
 	go build -o kvctl ./cmd/kvctl
@@ -23,7 +23,7 @@ bench:
 
 # Clean build artifacts
 clean:
-	rm -f kvctl kasoku-server
+	rm -f kvctl turbodynamo-server
 	go clean -cache
 
 # Format code
@@ -35,12 +35,12 @@ lint:
 	go vet ./...
 
 # Run server with default config
-run: kasoku-server
-	./kasoku-server
+run: turbodynamo-server
+	./turbodynamo-server
 
 # Run server with custom port
 run-port:
-	KASOKU_ADDR=$(PORT) ./kasoku-server
+	TURBODYNAMO_ADDR=$(PORT) ./turbodynamo-server
 
 # Interactive CLI shell
 shell:
@@ -48,10 +48,10 @@ shell:
 
 # Help
 help:
-	@echo "Kasoku - High-Performance LSM Key-Value Store"
+	@echo "TurboDynamo - High-Performance LSM Key-Value Store"
 	@echo ""
 	@echo "Usage:"
-	@echo "  make build       - Build binaries (kvctl, kasoku-server)"
+	@echo "  make build       - Build binaries (kvctl, turbodynamo-server)"
 	@echo "  make server-bin  - Build HTTP server"
 	@echo "  make cli-bin     - Build CLI tool"
 	@echo "  make test        - Run all tests"

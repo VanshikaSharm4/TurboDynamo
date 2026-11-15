@@ -51,25 +51,25 @@ export function MetricsView({ apiBase }: { apiBase: string }) {
     setBenchmarking(true)
     setBenchmarkPhase('write')
     setBenchmarkResults('Running network benchmark (pressure-tool)...')
-    
+
     try {
       const res = await fetch(api('/api/v1/benchmark/network?workers=30&duration=10'), {
         method: 'POST',
       })
       if (!res.ok) throw new Error('Benchmark failed')
-      
+
       const data = await res.json()
       setBenchmarkPhase('done')
-      
+
       // Parse the pressure-tool output to extract key numbers
       const output = data.data.pressure_output || ''
-      
+
       // Extract numbers
       const writes = output.match(/Writes[\s\S]*?avg\s+(\d+)/)?.[1] || 'N/A'
       const reads = output.match(/Reads[\s\S]*?avg\s+(\d+)/)?.[1] || 'N/A'
       const total = output.match(/Total[\s\S]*?(\d+)\s+ops\/sec/)?.[1] || 'N/A'
       const latency = output.match(/Latency p50[\s\S]*?([\d.]+ms)/)?.[1] || 'N/A'
-      
+
       setBenchmarkResults(`${data.data.mode === 'cluster' ? '3-Node Cluster' : 'Single-Node'} Benchmark:
 
 Nodes: ${data.data.nodes}
@@ -77,7 +77,7 @@ Workers: ${data.data.workers}
 Duration: ${data.data.duration_sec}s
 
 Writes:  ${writes} ops/sec
-Reads:  ${reads} ops/sec  
+Reads:  ${reads} ops/sec
 Total: ${total} ops/sec
 
 p50 Latency: ${latency}
@@ -90,7 +90,7 @@ See full output below.`)
 Run manually:
 ./pressure-tool -workers=60 -write-duration=10s -read-duration=10s -batch-get=1`)
     }
-    
+
     setBenchmarking(false)
   }, [api])
 
@@ -138,20 +138,20 @@ Run manually:
             }
           } catch { /* ignore */ }
 
-          const keyCount = nodeData?.stats?.KeyCount ?? parsed['kasoku_storage_engine_keys_total'] ?? 0
-          const diskBytes = nodeData?.stats?.DiskBytes ?? parsed['kasoku_storage_engine_bytes{type="disk"}'] ?? 0
-          const memBytes = nodeData?.stats?.MemBytes ?? parsed['kasoku_storage_engine_bytes{type="memory"}'] ?? 0
+          const keyCount = nodeData?.stats?.KeyCount ?? parsed['turbodynamo_storage_engine_keys_total'] ?? 0
+          const diskBytes = nodeData?.stats?.DiskBytes ?? parsed['turbodynamo_storage_engine_bytes{type="disk"}'] ?? 0
+          const memBytes = nodeData?.stats?.MemBytes ?? parsed['turbodynamo_storage_engine_bytes{type="memory"}'] ?? 0
 
-          const activeNodes = parsed['kasoku_cluster_nodes_active'] ?? 1
-          const pendingHints = parsed['kasoku_cluster_pending_hints'] ?? 0
+          const activeNodes = parsed['turbodynamo_cluster_nodes_active'] ?? 1
+          const pendingHints = parsed['turbodynamo_cluster_pending_hints'] ?? 0
 
           // Try different label orderings since Prometheus sorts labels alphabetically
-          const getReqs = 
-            parsed['kasoku_requests_total{operation="get",status="success"}'] ||
-            parsed['kasoku_requests_total{status="success",operation="get"}'] || 0
-          const putReqs = 
-            parsed['kasoku_requests_total{operation="put",status="success"}'] ||
-            parsed['kasoku_requests_total{status="success",operation="put"}'] || 0
+          const getReqs =
+            parsed['turbodynamo_requests_total{operation="get",status="success"}'] ||
+            parsed['turbodynamo_requests_total{status="success",operation="get"}'] || 0
+          const putReqs =
+            parsed['turbodynamo_requests_total{operation="put",status="success"}'] ||
+            parsed['turbodynamo_requests_total{status="success",operation="put"}'] || 0
 
           const prevGets = prevRef.current['gets'] ?? getReqs
           const prevPuts = prevRef.current['puts'] ?? putReqs
@@ -167,30 +167,30 @@ Run manually:
           const putRate = putDelta >= 0 ? putDelta / 5 : putReqs / 5
 
           // Parse latency histograms (values are in seconds, convert to ms)
-          // kasoku_http_handler_latency_seconds has buckets like le=0.001 means "less than 1ms"
-          const getLatency = parsed['kasoku_request_duration_seconds_bucket{operation="get",le="0.5"}'] ? 
-            (parsed['kasoku_request_duration_seconds_sum{operation="get"}'] / 
-             (parsed['kasoku_request_duration_seconds_count{operation="get"}'] || 1)) * 1000 : 0
-          const putLatency = parsed['kasoku_request_duration_seconds_bucket{operation="put",le="0.5"}'] ?
-            (parsed['kasoku_request_duration_seconds_sum{operation="put"}'] /
-             (parsed['kasoku_request_duration_seconds_count{operation="put"}'] || 1)) * 1000 : 0
-          
+          // turbodynamo_http_handler_latency_seconds has buckets like le=0.001 means "less than 1ms"
+          const getLatency = parsed['turbodynamo_request_duration_seconds_bucket{operation="get",le="0.5"}'] ?
+            (parsed['turbodynamo_request_duration_seconds_sum{operation="get"}'] /
+             (parsed['turbodynamo_request_duration_seconds_count{operation="get"}'] || 1)) * 1000 : 0
+          const putLatency = parsed['turbodynamo_request_duration_seconds_bucket{operation="put",le="0.5"}'] ?
+            (parsed['turbodynamo_request_duration_seconds_sum{operation="put"}'] /
+             (parsed['turbodynamo_request_duration_seconds_count{operation="put"}'] || 1)) * 1000 : 0
+
           // Store latency from http handler metrics
-          const storeLatencyGet = parsed['kasoku_http_handler_latency_seconds_bucket{operation="get",stage="store",le="0.001"}'] ?
-            (parsed['kasoku_http_handler_latency_seconds_sum{operation="get",stage="store"}'] /
-             (parsed['kasoku_http_handler_latency_seconds_count{operation="get",stage="store"}'] || 1)) * 1000 : 0
-          const storeLatencyPut = parsed['kasoku_http_handler_latency_seconds_bucket{operation="put",stage="store",le="0.001"}'] ?
-            (parsed['kasoku_http_handler_latency_seconds_sum{operation="put",stage="store"}'] /
-             (parsed['kasoku_http_handler_latency_seconds_count{operation="put",stage="store"}'] || 1)) * 1000 : 0
+          const storeLatencyGet = parsed['turbodynamo_http_handler_latency_seconds_bucket{operation="get",stage="store",le="0.001"}'] ?
+            (parsed['turbodynamo_http_handler_latency_seconds_sum{operation="get",stage="store"}'] /
+             (parsed['turbodynamo_http_handler_latency_seconds_count{operation="get",stage="store"}'] || 1)) * 1000 : 0
+          const storeLatencyPut = parsed['turbodynamo_http_handler_latency_seconds_bucket{operation="put",stage="store",le="0.001"}'] ?
+            (parsed['turbodynamo_http_handler_latency_seconds_sum{operation="put",stage="store"}'] /
+             (parsed['turbodynamo_http_handler_latency_seconds_count{operation="put",stage="store"}'] || 1)) * 1000 : 0
           const storeLatency = storeLatencyGet > 0 ? storeLatencyGet : storeLatencyPut
 
-          const lsmPutLatency = parsed['kasoku_lsm_put_latency_seconds_sum'] ?
-            (parsed['kasoku_lsm_put_latency_seconds_sum'] / (parsed['kasoku_lsm_put_latency_seconds_count'] || 1)) * 1000 : 0
-          const lsmGetLatency = parsed['kasoku_lsm_get_latency_seconds_sum{operation="get",phase="total"}'] ?
-            (parsed['kasoku_lsm_get_latency_seconds_sum{operation="get",phase="total"}'] / (parsed['kasoku_lsm_get_latency_seconds_count{operation="get",phase="total"}'] || 1)) * 1000 : 0
-          const sstables = parsed['kasoku_lsm_level_sstables{level="0"}'] || 0
-          const conflicts = parsed['kasoku_replication_conflicts_total'] || 0
-          const readRepairs = parsed['kasoku_read_repair_total'] || 0
+          const lsmPutLatency = parsed['turbodynamo_lsm_put_latency_seconds_sum'] ?
+            (parsed['turbodynamo_lsm_put_latency_seconds_sum'] / (parsed['turbodynamo_lsm_put_latency_seconds_count'] || 1)) * 1000 : 0
+          const lsmGetLatency = parsed['turbodynamo_lsm_get_latency_seconds_sum{operation="get",phase="total"}'] ?
+            (parsed['turbodynamo_lsm_get_latency_seconds_sum{operation="get",phase="total"}'] / (parsed['turbodynamo_lsm_get_latency_seconds_count{operation="get",phase="total"}'] || 1)) * 1000 : 0
+          const sstables = parsed['turbodynamo_lsm_level_sstables{level="0"}'] || 0
+          const conflicts = parsed['turbodynamo_replication_conflicts_total'] || 0
+          const readRepairs = parsed['turbodynamo_read_repair_total'] || 0
 
           const cards: MetricCardData[] = [
             { label: 'Keys', value: keyCount.toLocaleString() },
@@ -265,9 +265,9 @@ Run manually:
           <div className="metrics-offline-body">
             <h3>Server Unreachable</h3>
             <p>
-              The Kasoku server appears to be offline. Start it with:
+              The TurboDynamo server appears to be offline. Start it with:
             </p>
-            <code className="metrics-offline-cmd">KASOKU_CONFIG=kasoku.yaml ./kasoku-server</code>
+            <code className="metrics-offline-cmd">TURBODYNAMO_CONFIG=turbodynamo.yaml ./turbodynamo-server</code>
             <p className="metrics-offline-hint">
               Metrics are exposed at <code>/metrics</code> in Prometheus format.
             </p>
@@ -284,10 +284,10 @@ Run manually:
         <p className="metrics-subtitle">
           Real-time performance data from the Go runtime and LSM engine.
         </p>
-        
+
         <div className="benchmark-buttons" style={{ display: 'flex', gap: '12px', marginTop: '16px', marginBottom: '16px' }}>
-          <button 
-            className="btn btn-primary" 
+          <button
+            className="btn btn-primary"
             onClick={runAllBenchmarks}
             disabled={benchmarking}
             style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: '180px' }}
@@ -310,7 +310,7 @@ Run manually:
             )}
           </button>
         </div>
-        
+
         {benchmarkResults && (
           <pre className="benchmark-results" style={{ background: 'var(--bg-secondary)', padding: '16px', borderRadius: '8px', fontSize: '12px', marginBottom: '16px', whiteSpace: 'pre-wrap' }}>
             {benchmarkResults}
@@ -347,8 +347,8 @@ Run manually:
                   <LineChart data={chartData}>
                     <XAxis dataKey="time" tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', fontFamily: 'var(--font-sans)', boxShadow: 'var(--shadow-lg)' }} />
-                    <Line type="monotone" dataKey="getRate" stroke="#10b981" strokeWidth={1.5} dot={false} name="GET Rate" isAnimationActive={false} />
-                    <Line type="monotone" dataKey="putRate" stroke="#e11d5a" strokeWidth={1.5} dot={false} name="PUT Rate" isAnimationActive={false} />
+                    <Line type="monotone" dataKey="getRate" stroke="#656565" strokeWidth={1.5} dot={false} name="GET Rate" isAnimationActive={false} />
+                    <Line type="monotone" dataKey="putRate" stroke="#737373" strokeWidth={1.5} dot={false} name="PUT Rate" isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </motion.div>
@@ -358,9 +358,9 @@ Run manually:
                   <LineChart data={chartData}>
                     <XAxis dataKey="time" tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', fontFamily: 'var(--font-sans)', boxShadow: 'var(--shadow-lg)' }} />
-                    <Line type="monotone" dataKey="getLatency" stroke="#10b981" strokeWidth={1.5} dot={false} name="GET Latency" isAnimationActive={false} />
-                    <Line type="monotone" dataKey="putLatency" stroke="#e11d5a" strokeWidth={1.5} dot={false} name="PUT Latency" isAnimationActive={false} />
-                    <Line type="monotone" dataKey="storeLatency" stroke="#f59e0b" strokeWidth={1.5} dot={false} name="Store Latency" isAnimationActive={false} />
+                    <Line type="monotone" dataKey="getLatency" stroke="#656565" strokeWidth={1.5} dot={false} name="GET Latency" isAnimationActive={false} />
+                    <Line type="monotone" dataKey="putLatency" stroke="#737373" strokeWidth={1.5} dot={false} name="PUT Latency" isAnimationActive={false} />
+                    <Line type="monotone" dataKey="storeLatency" stroke="#999999" strokeWidth={1.5} dot={false} name="Store Latency" isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </motion.div>
@@ -377,7 +377,7 @@ Run manually:
                   <LineChart data={chartData}>
                     <XAxis dataKey="time" tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', fontFamily: 'var(--font-sans)', boxShadow: 'var(--shadow-lg)' }} />
-                    <Line type="monotone" dataKey="keys" stroke="#a855f7" strokeWidth={1.5} dot={false} name="Keys" isAnimationActive={false} />
+                    <Line type="monotone" dataKey="keys" stroke="#adadad" strokeWidth={1.5} dot={false} name="Keys" isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </motion.div>
@@ -387,8 +387,8 @@ Run manually:
                   <LineChart data={chartData}>
                     <XAxis dataKey="time" tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', fontFamily: 'var(--font-sans)', boxShadow: 'var(--shadow-lg)' }} />
-                    <Line type="monotone" dataKey="memBytes" stroke="#3b82f6" strokeWidth={1.5} dot={false} name="MemTable" isAnimationActive={false} />
-                    <Line type="monotone" dataKey="diskBytes" stroke="#f59e0b" strokeWidth={1.5} dot={false} name="Disk" isAnimationActive={false} />
+                    <Line type="monotone" dataKey="memBytes" stroke="#858585" strokeWidth={1.5} dot={false} name="MemTable" isAnimationActive={false} />
+                    <Line type="monotone" dataKey="diskBytes" stroke="#999999" strokeWidth={1.5} dot={false} name="Disk" isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </motion.div>
@@ -405,8 +405,8 @@ Run manually:
                   <LineChart data={chartData}>
                     <XAxis dataKey="time" tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', fontFamily: 'var(--font-sans)', boxShadow: 'var(--shadow-lg)' }} />
-                    <Line type="monotone" dataKey="activeNodes" stroke="#10b981" strokeWidth={1.5} dot={false} name="Active Nodes" isAnimationActive={false} />
-                    <Line type="monotone" dataKey="pendingHints" stroke="#ef4444" strokeWidth={1.5} dot={false} name="Pending Hints" isAnimationActive={false} />
+                    <Line type="monotone" dataKey="activeNodes" stroke="#656565" strokeWidth={1.5} dot={false} name="Active Nodes" isAnimationActive={false} />
+                    <Line type="monotone" dataKey="pendingHints" stroke="#555555" strokeWidth={1.5} dot={false} name="Pending Hints" isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </motion.div>
@@ -423,7 +423,7 @@ Run manually:
                   <LineChart data={chartData}>
                     <XAxis dataKey="time" tick={{ fontSize: 10, fill: 'var(--text-muted)', fontFamily: 'var(--font-sans)' }} axisLine={false} tickLine={false} />
                     <Tooltip contentStyle={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: '8px', fontSize: '12px', fontFamily: 'var(--font-sans)', boxShadow: 'var(--shadow-lg)' }} />
-                    <Line type="monotone" dataKey="goroutines" stroke="#e11d5a" strokeWidth={1.5} dot={false} name="Goroutines" isAnimationActive={false} />
+                    <Line type="monotone" dataKey="goroutines" stroke="#737373" strokeWidth={1.5} dot={false} name="Goroutines" isAnimationActive={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </motion.div>

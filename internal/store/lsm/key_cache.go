@@ -3,7 +3,7 @@ package lsm
 import (
 	"sync"
 
-	storage "github.com/VanshikaSharm4/TurboDynamo.git/internal/store"
+	storage "github.com/VanshikaSharm4/TurboDynamo/internal/store"
 )
 
 // KeyCache caches both positive and negative key lookups in the LSM engine.

@@ -1,6 +1,6 @@
-# Kasoku Complete UML & Sequence Diagrams
+# TurboDynamo Complete UML & Sequence Diagrams
 
-This document contains Mermaid UML diagrams representing the core architecture and complex workflows of Kasoku.
+This document contains Mermaid UML diagrams representing the core architecture and complex workflows of TurboDynamo.
 
 ## 1. Storage Engine (LSM-Tree) Architecture
 *Shows the physical storage layout on a single node.*
@@ -203,7 +203,7 @@ sequenceDiagram
 ```
 
 ## 8. Version Control: Vector Clocks
-*Shows how Kasoku handles conflicting writes from different nodes without a master server.*
+*Shows how TurboDynamo handles conflicting writes from different nodes without a master server.*
 ```mermaid
 sequenceDiagram
     participant Client
