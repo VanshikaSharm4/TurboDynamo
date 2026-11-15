@@ -2,9 +2,11 @@
 
 # TurboDynamo
 
-### Distributed storage. Visible internals. Real engineering.
+### A masterless distributed database with a custom LSM-tree storage engine
 
-A Dynamo-inspired key-value database built in Go, with a custom LSM storage engine, a masterless cluster, and an interactive dashboard that makes the architecture tangible.
+TurboDynamo implements Dynamo-style distributed storage in Go: consistent-hash partitioning, configurable quorum replication, vector-clock versioning, and replica recovery—backed by a custom write-ahead log, MemTables, SSTables, and background compaction.
+
+**Masterless coordination · LSM-tree persistence · Quorum replication · Replica repair · HTTP + gRPC · Live observability**
 
 [![CI](https://github.com/VanshikaSharm4/TurboDynamo/actions/workflows/ci.yml/badge.svg)](https://github.com/VanshikaSharm4/TurboDynamo/actions/workflows/ci.yml)
 ![Go](https://img.shields.io/badge/Go-1.25%2B-666666?style=flat-square)
@@ -15,33 +17,24 @@ A Dynamo-inspired key-value database built in Go, with a custom LSM storage engi
 
 </div>
 
+## Distributed systems, from the storage engine to the cluster
+
+TurboDynamo brings the core layers of a distributed database into one inspectable system. It combines **local persistence**, **distributed request coordination**, **replication**, and **reconciliation**, with a dashboard and CLI for operating the same backend.
+
+- **A storage engine built inside the project.** Writes pass through a write-ahead log and an in-memory MemTable before reaching sorted SSTables. Bloom filters, caching, and leveled or tiered compaction support the read and write paths.
+- **A cluster without a permanent primary.** Any node can coordinate a request. A CRC32 consistent hash ring with virtual nodes determines ownership and replica placement.
+- **Replication you can configure.** Replica count and read/write quorums expose the tradeoffs between acknowledgements, availability, and consistency. Vector clocks track causal relationships between versions.
+- **Mechanisms for divergence and recovery.** Hinted handoff retries unavailable replicas, read repair updates stale copies, and Merkle-tree reconciliation helps identify differences between nodes.
+- **Membership that adapts to failures.** Gossip propagates cluster state, while phi-accrual failure detection evaluates heartbeat behavior instead of relying only on a fixed timeout.
+- **An operational interface, not only an API.** HTTP, gRPC, and the `kvctl` CLI provide data access. Prometheus metrics, tracing support, and the React dashboard make request flow, storage, and cluster behavior visible.
+
+Run a single node to inspect persistence and recovery, or a multi-node cluster to explore placement, replication, and coordination. The included YCSB-style client exercises the system with configurable workloads.
+
 ![TurboDynamo dashboard overview with request charts, storage pipeline, and demo mode](docs/media/dashboard-overview.png)
 
-> **A database you can explore, not just query.** Follow a key around a hash ring. Watch a write reach the server. Inspect storage, replication, and runtime metrics from one clean interface.
-
-## What is TurboDynamo?
-
-TurboDynamo stores data as **keys and values**. Save `user:1001` with a profile, fetch it later, update it, or delete it. Values can be text, serialized JSON, or application bytes.
-
-Under that simple interface sits the interesting part: a storage engine that organizes writes into sorted files, and a distribution layer that places copies across cooperating servers.
-
-You can run one node to explore local storage, or launch three nodes to experiment with partitioning, replication, and failure recovery. Use the web dashboard, the `kvctl` terminal client, HTTP requests, or gRPC clients against the same backend.
-
-```text
-user:1001       {"name":"Alice","plan":"Pro"}
-product:42      {"name":"Mechanical keyboard","stock":24}
-config:theme   light
-```
+> **Explore the complete path:** a client request reaches a coordinator, maps to replicas on the hash ring, enters the local storage engine, and becomes visible through the API and telemetry.
 
 ## See it in action
-
-### Write it. Read it. Delete it.
-
-The recording below shows **actual requests to the running Go backend**, through the Live backend interface. The server accepts a write, returns the saved entry, and acknowledges its deletion.
-
-![Actual TurboDynamo backend handling PUT, GET, and DELETE through the dashboard](docs/media/live-crud.gif)
-
-The HTTP response represents byte values as Base64. For example, `SGVsbG8gZnJvbSBUdXJib0R5bmFtbw==` decodes to `Hello from TurboDynamo`. The CLI renders this value as readable text.
 
 ### Watch a key find its place
 
