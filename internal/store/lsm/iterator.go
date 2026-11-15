@@ -81,7 +81,7 @@ func (it *Iterator) Next() bool {
 
 	if it.closed || it.pos >= len(it.entries)-1 {
 		if len(it.entries) > 0 {
-			it.pos = len(it.entries) - 1
+			it.pos = len(it.entries)
 		} else {
 			it.pos = -1
 		}

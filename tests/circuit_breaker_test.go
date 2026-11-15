@@ -14,7 +14,7 @@ const (
 )
 
 type CircuitBreaker struct {
-	mu             sync.RWMutex
+	mu            sync.RWMutex
 	state         CircuitState
 	failures      int
 	threshold     int

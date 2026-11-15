@@ -731,7 +731,11 @@ func (e *LSMEngine) flushLoop() {
 		case <-ticker.C:
 		}
 
-		if e.closed.Load() {
+		e.mu.Lock()
+		finished := e.closed.Load() && e.active.Len() == 0 && len(e.immutable) == 0
+		e.flushing.Store(!finished)
+		e.mu.Unlock()
+		if finished {
 			return
 		}
 
@@ -811,6 +815,7 @@ func (e *LSMEngine) flushLoop() {
 			e.flushCond.Broadcast()
 		}
 
+		e.flushing.Store(false)
 		// Signal any waiters that all flushes are complete
 		e.flushCond.Broadcast()
 	}
@@ -1221,7 +1226,7 @@ func (e *LSMEngine) flushMemTable() error {
 	case e.directFlushCh <- struct{}{}:
 		for {
 			e.mu.Lock()
-			drained := len(e.immutable) == 0
+			drained := len(e.immutable) == 0 && !e.flushing.Load()
 			e.mu.Unlock()
 			if drained {
 				break
@@ -1231,7 +1236,7 @@ func (e *LSMEngine) flushMemTable() error {
 	default:
 		for {
 			e.mu.Lock()
-			drained := len(e.immutable) == 0
+			drained := len(e.immutable) == 0 && !e.flushing.Load()
 			e.mu.Unlock()
 			if drained {
 				break

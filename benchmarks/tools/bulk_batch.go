@@ -30,18 +30,18 @@ func main() {
 
 	fmt.Println("[INFO] RUNNING TURBODYNAMO THROUGHPUT BENCHMARK")
 	fmt.Println("Testing optimizations: Batched Replication, Async WAL, Binary RPC")
-	
+
 	// Benchmark Batches
 	workers := 20
 	batchesPerWorker := 50
 	batchSize := 100
-	
+
 	var totalWrites uint64
 	var successWrites uint64
-	
+
 	start := time.Now()
 	var wg sync.WaitGroup
-	
+
 	fmt.Printf("Spawning %d workers to push %d keys total via /api/v1/batch...\n", workers, workers*batchesPerWorker*batchSize)
 
 	for w := 0; w < workers; w++ {
@@ -57,12 +57,12 @@ func main() {
 						Value: "payload-data",
 					})
 				}
-				
+
 				reqBody, _ := json.Marshal(BatchRequest{Entries: entries})
 				url := "http://localhost:9000/api/v1/batch"
 				req, _ := http.NewRequest("PUT", url, bytes.NewReader(reqBody))
 				req.Header.Set("Content-Type", "application/json")
-				
+
 				resp, err := client.Do(req)
 				if err == nil && resp.StatusCode == 200 {
 					atomic.AddUint64(&successWrites, uint64(batchSize))
@@ -77,10 +77,10 @@ func main() {
 
 	wg.Wait()
 	duration := time.Since(start)
-	
+
 	writes := atomic.LoadUint64(&successWrites)
 	throughput := float64(writes) / duration.Seconds()
-	
+
 	fmt.Printf("\n🏁 BENCHMARK COMPLETE\n")
 	fmt.Printf("Time Elapsed : %.2fs\n", duration.Seconds())
 	fmt.Printf("Total Written: %d keys\n", writes)

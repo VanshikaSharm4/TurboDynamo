@@ -802,6 +802,7 @@ func TestWAL_TruncateBefore_CorruptRecords(t *testing.T) {
 
 	wal, err := OpenWAL(path)
 	require.NoError(t, err)
+	defer wal.Close()
 
 	// Write valid entry
 	require.NoError(t, wal.Append(Entry{Key: "k1", Value: []byte("v1")}))

@@ -34,10 +34,10 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
-      - name: Install golangci-lint
-        uses: golangci/golangci-lint-action@v6
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: latest
+          version: v2.15.0
           args: --timeout=5m --issues-exit-code=0
 
       - name: go vet
@@ -45,7 +45,7 @@ jobs:
 
       - name: Check formatting
         run: |
-          unformatted=$(gofmt -l .)
+          unformatted=$(git ls-files '*.go' | xargs gofmt -l)
           if [ -n "$unformatted" ]; then
             echo "Unformatted files:"
             echo "$unformatted"
@@ -71,7 +71,9 @@ jobs:
           cache: true
 
       - name: Run tests with race detector
-        run: go test -race -timeout 10m -v ./... 2>&1 | tee test-output.log
+        run: |
+          set -o pipefail
+          go test -race -timeout 10m -v ./... 2>&1 | tee test-output.log
 
       - name: Upload test output
         if: always()
@@ -186,7 +188,7 @@ jobs:
 
       - name: Health check all nodes
         run: |
-          for port in 9001 9002 9003; do
+          for port in 9001 9011 9021; do
             echo "Checking node on port $port..."
             curl -sf http://localhost:$port/health || exit 1
           done
@@ -263,12 +265,17 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Verify image
+        env:
+          TEST_IMAGE: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
         run: |
-          docker pull ${{ steps.meta.outputs.tags }}
-          docker run --rm -d --name turbodynamo-test -p 9000:9000 ${{ steps.meta.outputs.tags }}
-          sleep 5
-          curl -sf http://localhost:9000/health || (docker logs turbodynamo-test && exit 1)
-          docker stop turbodynamo-test || true
+          docker pull "$TEST_IMAGE"
+          docker run --rm -d --name turbodynamo-test -p 9001:9001 "$TEST_IMAGE"
+          trap 'docker logs turbodynamo-test; docker stop turbodynamo-test || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl -sf http://localhost:9001/health; then exit 0; fi
+            sleep 1
+          done
+          exit 1
 
   # ==========================================
   # BENCHMARK - Single-node throughput check

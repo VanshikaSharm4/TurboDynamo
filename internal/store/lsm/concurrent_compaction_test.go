@@ -270,10 +270,16 @@ func TestWAL_Compaction_Integration(t *testing.T) {
 	walSizeBefore, _ := engine.wal.Size()
 	assert.Greater(t, walSizeBefore, int64(0))
 
-	// Flush - should reset WAL
+	// Flush persists the memtable; retain the WAL until a safe checkpoint can be retired.
 	require.NoError(t, engine.Flush())
 
-	// WAL should be reset after flush
-	walSizeAfter, _ := engine.wal.Size()
-	assert.Equal(t, int64(0), walSizeAfter)
+	// Retaining the log avoids dropping writes racing with a flush.
+	walSizeAfter, err := engine.wal.Size()
+	require.NoError(t, err)
+	assert.Greater(t, walSizeAfter, int64(0))
+	for i := 0; i < 10; i++ {
+		entry, err := engine.Get(fmt.Sprintf("key:%d", i))
+		require.NoError(t, err)
+		assert.Equal(t, fmt.Sprintf("value:%d", i), string(entry.Value))
+	}
 }
